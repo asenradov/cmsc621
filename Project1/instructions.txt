@@ -1,0 +1,20 @@
+Winston Tong
+CMSC 621 Project 1
+
+NOTE
+device.c is the standard file for both sensors and deivces
+It identifies itself by using the "type" in the config file given.
+The devices must be given 1 file while the sensors 2 files nessesary 
+
+To compile all the gateway and device file run ./Makefile.sh (this is not an actual Makefile but a script)
+
+There is a script system.sh which will run the code with the files in SampleInput as the arguements and store the gateway output in SampleTestRunOutput.txt (errors are stored in error.txt)
+
+NOTE the processes in system.sh are run in the background and need to be killed before looking in the Output file. To do this run "ps" and kill all devices first then the gateway.
+
+If you need to use your own files, feel free to modify system.sh or execute the processes normally.
+
+Normal execution example.
+./gateway gatewayConf.txt
+./device devConfig.txt  //Will run a device process
+./device senseConfig.txt SenseInput.txt //Will run a sensor process

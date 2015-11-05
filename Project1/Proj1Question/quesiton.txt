@@ -1,0 +1,17 @@
+Error checking
+-gaps in time intervals
+-Incorrect txt files
+ -bad formatting
+ -same port
+
+Do sensor and device share a C file?
+-the Config files are the smae except for itemType which can be used to differentiate
+
+
+End time is inclusive, Start time is inclusive
+-What do we do in the beginning? time 0.
+-The sensor sends currState upon turning on. Does it send the currValue (time 0) as well?
+
+Multiple device per area?
+
+Malloc question.
