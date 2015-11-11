@@ -155,13 +155,9 @@ void *iterate(void *sock){
   //printf("MAXTIME %d\n",max_time);
   char buffer[1024];
 
+  //TODO: Send Time as well as type
   if (strcmp(s.type,"DoorSensor")!=0){
     while (s.state){//while it's on
-      sleep(interval);
-      time += interval;
-      if (time>max_time){
-	time = time-max_time;
-      }
       temp = list;
       while(temp != NULL){
 	temp_val = temp->data;
@@ -174,6 +170,11 @@ void *iterate(void *sock){
 	  send(gate_sock,buffer, strlen(buffer)+1, 0);
 	}
 	temp = temp->next;
+      }
+      sleep(interval);
+      time += interval;
+      if (time>max_time){
+	time = time-max_time;
       }
     }
   }
