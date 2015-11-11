@@ -1,5 +1,5 @@
 /*
-  Sensor file.
+  BackLog file
 */
 #include<stdio.h> //printf
 #include<string.h>    //strlen
@@ -22,23 +22,13 @@ typedef struct{
   int clock;
 }Sensor;
 
-//Holds the times and temps
-struct time_state{
-  int start;
-  int end;
-  char* state;
-};
-
-//Linked list of time_temp
 struct node{
   struct time_state* data;
   struct node* next;
 };
 
-Sensor s;//me
+Gateway s;//me
 Gateway g;
-int interval = 5;//default
-int max_time;
 struct node* list;
 
 //inserts to list
@@ -99,110 +89,18 @@ void readConfig(char* file){
     printf("Error file too small.\n");
     exit(0);
   }
+
+  //set my info
+  s.ip = strdup(strtok(raw,":"));
+  token = strtok(NULL,":");
+  s.port = atoi(token);
   
-  s.type = strdup(strtok(raw,":"));
-  s.ip = strdup(strtok(NULL,":"));
-  s.port = atoi(strtok(NULL,":"));
-  s.area = atoi(strtok(NULL,":"));
-     
   free(raw);
   fclose(fp);
 }
 
-//Read in the input file
-void readInput(char* file){
-  FILE *fp;
-  char *line = NULL;
-  size_t len = 0;
-  fp = fopen(file,"r");
-
-  if(fp == NULL){
-    printf("Error opening file.\n");
-    exit(0);
-  }
-
-  struct time_state* entry;
-  
-  while ((getline(&line,&len,fp)) != -1){
-    entry = malloc(sizeof(struct time_state));
-    entry->start = atoi(strtok(line,","));
-    if (strcmp(s.type,"doorSensor")!=0){      
-      entry->end = -1;
-    }
-    else{
-      entry->end = atoi(strtok(NULL,";"));
-    }
-    entry->state = strdup(strtok(NULL,"\n"));
-    insert(entry);
-  }
-  max_time = entry->end;
-  //printf("MAC TIME%d\n",max_time);
-  //print list to test
-  //printf("TEST: %d,%d,%s\n",entry->start,entry->end,entry->temp);
- 
-  free(line);
-}
-
-//Thread
-//writes the time to the gateway at every interval
-void *iterate(void *sock){
-  //print_list();
-  //printf("IM A THREAD: %d\n",pthread_self());
-  int gate_sock = *(int*)sock;
-  int time = 0;
-  struct node* temp;
-  struct time_state* temp_val;
-  //printf("MAXTIME %d\n",max_time);
-  char buffer[1024];
-
-  //TODO: Send Time as well as type
-  if (strcmp(s.type,"doorSensor")!=0){
-    while (s.state){//while it's on
-      temp = list;
-      while(temp != NULL){
-	temp_val = temp->data;
-	if (time<=(temp_val->end)&& (time>(temp_val->start)||time==0)){
-	  //printf("I AM SENDING Time:%d  do %s\n",time,temp_val->temp);
-	
-	  //Increment Clock
-	  s.clock++;
-	  snprintf(buffer,sizeof(buffer),"Type:currValue;Action:%s\0",temp_val->state);
-	  send(gate_sock,buffer, strlen(buffer)+1, 0);
-	}
-	temp = temp->next;
-      }
-      sleep(interval);
-      time += interval;
-      if (time>max_time){
-	time = time-max_time;
-      }
-    }
-  }
-  else{
-    while (s.state){//while it's on
-      temp = list;
-      while(temp != NULL){
-	temp_val = temp->data;
-	if (time==(temp_val->start)){
-	  //printf("I AM SENDING Time:%d  do %s\n",time,temp_val->temp);
-	
-	  //Increment Clock
-	  s.clock++;
-	  snprintf(buffer,sizeof(buffer),"Type:currValue;Action:%s\0",temp_val->state);
-	  send(gate_sock,buffer, strlen(buffer)+1, 0);
-	}
-	temp = temp->next;
-      }
-      sleep(1);
-      time += interval;
-      if (time>max_time){
-	time = 0;
-      }
-    }
-  }
-}
-
 //Decodes the message from the gateway
+//Should basically only be log commands
 void identify(int gate_sock,char* command){
   //printf("msg: %s\n",command);
   char * type;
@@ -250,10 +148,9 @@ int main(int argc , char *argv[])
 
   //add arguements
   readConfig(argv[1]);
-  readInput(argv[2]);
 
-  //change (should take care of writing only when writing)
-  FILE *f = fopen(argv[3],"w");
+  //change (should take care of writing only when writing maybe)
+  FILE *f = fopen(argv[2],"w");
   if (f==NULL){
     printf("Error opening file\n");
     exit(1);
