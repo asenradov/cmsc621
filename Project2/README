@@ -1,3 +1,35 @@
 I've got special permission to change the config file.
 The config files for the 3 sensors will be
 "keySensor,motionSensor and doorSensor" instead of just sensor.
+
+Message Formats
+
+Everything to gateway (even backend?)
+-------------------------------------
+register
+	Type:register;Action:clock-deviceType-ip-port
+currValue
+	Type:currValue;Action:clock-state
+
+
+Front Gate to Back Gate
+-------------------------
+log
+	Type:log;Action:deviceValue-deviceType-state-clock-ip-port
+
+
+Gateway to doorSensor
+-------------------------
+poll
+	Type:currState;Action:poll;
+
+Gateway to Device
+-------------------------
+switch
+	Type:switch;Action:on;
+
+
+Key ToDos (personal questions)
+---------------
+Central Synchronization vs Distributed Synchronization
+Clocks (actual time vs process time)
