@@ -126,8 +126,8 @@ void readConfig(char* file){
     exit(0);
   }
   fscanf(fp,"%s",raw);
-  strcpy(g.ip,(strtok(raw,":")));
-  g.port = atoi(strtok(NULL,":"));
+  strcpy(g.ip,(strtok(raw,",")));
+  g.port = atoi(strtok(NULL,","));
   
   fclose(fp);
 }
@@ -211,6 +211,7 @@ void identify(struct device **client_device,char *msg,int socket){
   if (strcmp(type,"register")==0){
     register_node(client_device,action,socket);
     if (device_count == MULTI_DEVICES){//All devices registered
+      //TODO: MAKE SURE BACKGATE IS REGISTERED AS WELL
       sendClears();
     }
   }
