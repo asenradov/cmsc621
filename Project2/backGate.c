@@ -60,7 +60,7 @@ void insert(char* command, char* fp) {
 	char *tmp;
 	char *garb1, *garb2, *garb3;
 
-	FILE *f = fopen(fp, "a+");
+	FILE *f = fopen(fp, "wa+");
 	if (f == NULL) {
 		printf("Error opening file\n");
 		exit(1);
