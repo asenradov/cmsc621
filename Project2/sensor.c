@@ -17,10 +17,15 @@ typedef struct{
 } Gateway;
 
 typedef struct{
+  struct sockaddr_in addr;
+  int addrlen;
+  int sock;
+} Multichannel;
+
+typedef struct{
   int id;//id num
   char* type;
   int port;
-  int area;
   char* ip;
   int* clock;
 }Sensor;
@@ -38,6 +43,7 @@ struct node{
   struct node* next;
 };
 
+Multichannel m;//the multichannel
 Sensor s;//me
 Gateway g;
 int interval = 5;//default
@@ -93,8 +99,8 @@ void readConfig(char* file){
   }
   
   //printf("%s\n",raw);
-  g.ip = strdup(strtok(raw,":"));
-  token = strtok(NULL,":");
+  g.ip = strdup(strtok(raw,","));
+  token = strtok(NULL,",");
   g.port = atoi(token);
   //printf("port: %d\n",g.port);
 
@@ -103,11 +109,14 @@ void readConfig(char* file){
     exit(0);
   }
   
-  s.type = strdup(strtok(raw,":"));
-  s.ip = strdup(strtok(NULL,":"));
-  s.port = atoi(strtok(NULL,":"));
-  s.area = atoi(strtok(NULL,":"));
-     
+  s.type = strdup(strtok(raw,","));
+  s.ip = strdup(strtok(NULL,","));
+  s.port = atoi(strtok(NULL,","));
+
+  //set interate for door
+  if(strcmp(s.type,"doorSensor")==0){
+    interval=1;
+  }
   free(raw);
   fclose(fp);
 }
@@ -128,12 +137,12 @@ void readInput(char* file){
   
   while ((getline(&line,&len,fp)) != -1){
     entry = malloc(sizeof(struct time_state));
-    entry->start = atoi(strtok(line,","));
+    entry->start = atoi(strtok(line,";"));
     if (strcmp(s.type,"doorSensor")==0){      
       entry->end = -1;
     }
     else{
-      entry->end = atoi(strtok(NULL,","));
+      entry->end = atoi(strtok(NULL,";"));
     }
     entry->state = strdup(strtok(NULL,"\n"));
     insert(entry);
@@ -153,10 +162,9 @@ void readInput(char* file){
 
 //Thread
 //writes the time to the gateway at every interval
-void *iterate(void *sock){//add addr stuff
+void *iterate(){//add addr stuff
   print_list();
   printf("IM A THREAD: %d\n",pthread_self());
-  int gate_sock = *(int*)sock;
   int time = 0;
   struct node* temp;
   struct time_state* temp_val;
@@ -169,25 +177,24 @@ void *iterate(void *sock){//add addr stuff
       temp = list;
       while(temp != NULL){
 	temp_val = temp->data;
-	if (time<=(temp_val->end)&& (time>(temp_val->start)||time==0)){
+	if (time<=(temp_val->end)&& (time>=(temp_val->start))){
 	  printf("I AM SENDING Time:%d  do %s\n",time,temp_val->state);
 	
 	  //Increment Clock
 	  s.clock++;
 	  snprintf(buffer,sizeof(buffer),"Type:currValue;Action:%s\0",temp_val->state);
-	  send(gate_sock,buffer, strlen(buffer)+1, 0);
+	  sendto(m.sock,buffer, strlen(buffer)+1, 0,(struct sockaddr*)&m.addr,m.addrlen);
 	}
 	temp = temp->next;
       }
       sleep(interval);
       time += interval;
       if (time>max_time){
-	time = time-max_time;
-     
+	time = time-max_time;     
       }
     }
   }
-  else{
+  else{//DOOR SENSOR
     while(1){
       temp = list;
       while(temp != NULL){
@@ -198,7 +205,7 @@ void *iterate(void *sock){//add addr stuff
 	  //Increment Clock
 	  s.clock++;
 	  snprintf(buffer,sizeof(buffer),"Type:currValue;Action:%s\0",temp_val->state);
-	  send(gate_sock,buffer, strlen(buffer)+1, 0);
+	  sendto(m.sock,buffer, strlen(buffer)+1, 0,(struct sockaddr*)&m.addr,m.addrlen);
 	}
 	temp = temp->next;
       }
@@ -230,8 +237,7 @@ void* multicast_listener(){
   addr.sin_port = htons(GROUP_PORT);
   addrlen = sizeof(addr);
   
-  /* if (bind(sock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {        
-
+  /* if (bind(sock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {      
      perror("bind");
      exit(1);
      } */   
@@ -243,9 +249,13 @@ void* multicast_listener(){
     exit(1);
   }
 
+  //reocrd data
+  m.addr = addr;
+  m.addrlen = addrlen;
+  m.sock = sock;
+  
   //start thread
-  printf("MORE\n");
-  pthread_create(&thread,NULL,iterate,&sock);
+  pthread_create(&thread,NULL,iterate,NULL);
 	
   while (1) {
     cnt = recvfrom(sock, message, sizeof(message), 0, 
@@ -285,7 +295,7 @@ void identify(int gate_sock,char* command){
   if (strcmp(type,"clear")==0){
     s.id = atoi(strtok(action,"-"));
     s.clock = malloc(atoi(strtok(NULL,"-"))*sizeof(int));
-    printf("LETS GO \n");
+ 
     //Start iterating
     if (pthread_create(&multi,NULL,multicast_listener,NULL) < 0){
       perror("Could not create new thread");
