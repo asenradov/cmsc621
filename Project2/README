@@ -2,20 +2,22 @@ I've got special permission to change the config file.
 The config files for the 3 sensors will be
 "keySensor,motionSensor and doorSensor" instead of just sensor.
 
-Message Formats
+Message Formats. This is more complicated.
+Messages will be past between the multichannel and the uni channel
+BackGate is not part of the multichannel
 
 Everything to gateway (even backend?)
 -------------------------------------
-register
+register (Unichannel)
 	Type:register;Action:clock-deviceType-ip-port
-currValue
+currValue (Multichannel)
 	Type:currValue;Action:clock-state
 
 
 Front Gate to Back Gate
 -------------------------
-log
-	Type:log;Action:deviceValue-deviceType-state-clock-ip-port
+insert (Unichannel)
+	Type:insert;Action:deviceValue-deviceType-state-clock-ip-port
 
 
 Gateway to doorSensor
@@ -28,8 +30,13 @@ Gateway to Device
 switch
 	Type:switch;Action:on;
 
+Gateway to Sensors
+------------------------
+clear
+	Type:clear;Action:deviceNum-numDevices(5);
+
 
 Key ToDos (personal questions)
 ---------------
 Central Synchronization vs Distributed Synchronization
-Clocks (actual time vs process time)
+Clocks
