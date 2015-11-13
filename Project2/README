@@ -17,7 +17,7 @@ currValue (Multichannel)
 Front Gate to Back Gate
 -------------------------
 insert (Unichannel)
-	Type:insert;Action:deviceValue-deviceType-state-clock-ip-port
+	Type:insert;Action:id,deviceType,deviceValue,clock,ip,port
 
 
 Gateway to doorSensor
