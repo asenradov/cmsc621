@@ -315,7 +315,8 @@ void* multicast_listener(){
     } else if (cnt == 0) {
       break;
     }
-    printf("%s: message = \"%s\"\n", inet_ntoa(addr.sin_addr), message);
+    printf("%s: message = \"%s\"\n\0", inet_ntoa(addr.sin_addr), message);
+    send(b.socket,message,strlen(message)+1,0);
   }
 }
 

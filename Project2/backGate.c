@@ -56,7 +56,7 @@ void readConfig(char* file) {
 
 //insert info into back end file
 void insert(char* command, char* fp) {
-	//printf("msg: %s\n",command);
+	printf("msg: %s\n",command);
 	char *tmp;
 	char *garb1, *garb2, *garb3;
 
@@ -69,7 +69,7 @@ void insert(char* command, char* fp) {
 	//Type:insert;Action:id,deviceType,deviceValue,clock,ip,port
 	sscanf(command,"%s:%s;%s:%s",garb1, garb2, garb3, tmp);
 
-	//printf("Insert: %s\n", tmp);
+	printf("Insert: %s\n", tmp);
 	fprintf(f, tmp);
 	fprintf(f, "\n");
 
