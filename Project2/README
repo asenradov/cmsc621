@@ -6,7 +6,7 @@ Message Formats. This is more complicated.
 Messages will be past between the multichannel and the uni channel
 BackGate is not part of the multichannel
 
-Everything to gateway (even backend?)
+Everything to gateway
 -------------------------------------
 register (Unichannel)
 	Type:register;Action:clock-deviceType-ip-port

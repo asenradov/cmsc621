@@ -11,16 +11,24 @@
 
 #define GROUP_PORT 6000
 #define GROUP_IP "239.0.0.1"
+#define MULTI_DEVICES 1 //Exculding Gateway
+//5th device is gateway
+//<0,1,2,3,4>
 
 struct device{
   int id;
   char *type;
   int port;
   char *ip;
-  int area;
   char *value;
   int socket;
 };
+
+typedef struct{
+  int port;
+  char *ip;
+  int socket;
+}BackGate;
   
 struct node{
   struct device* data;
@@ -30,12 +38,14 @@ struct node{
 typedef struct{
   int port;
   char ip[255];
+  int* clock;
 } Gateway;
 
 //list
 struct node* list;
 int device_count = 0;
 Gateway g;
+BackGate b;
 
 //print the list of devices
 void print_list(){
@@ -46,7 +56,7 @@ void print_list(){
     temp_device = temp->data;
     //Do not print if the sensor is just on for some reason...
     if((strcmp(temp_device->type,"sensor")==0 && strcmp(temp_device->value,"on")!=0) || strcmp(temp_device->type,"device")==0){
-      printf("%d----%s:%d----%s----%d----%s\n",temp_device->id,temp_device->ip,temp_device->port,temp_device->type,temp_device->area,temp_device->value);
+      printf("%d----%s:%d----%s----%s\n",temp_device->id,temp_device->ip,temp_device->port,temp_device->type,temp_device->value);
     }
     temp = temp->next;
   }
@@ -106,7 +116,7 @@ void insert(struct device **addition){
   }
 }
 
-//Read in gatewat characteristics
+//Read in gateway characteristics
 void readConfig(char* file){
   char raw[255];
   FILE *fp;
@@ -123,29 +133,35 @@ void readConfig(char* file){
 }
 
 //register node. append it to the list in off state
+//device_count 0 is reserved for the backend
 void register_node(struct device **client_device,char *action,int sock){
   char buffer[1024];
   char* type = strtok(action,"-");
   char* ip = strtok(NULL,"-");
   char* port = strtok(NULL,"-");
-  char* area = strtok(NULL,"-");
 
   (*client_device)=malloc(sizeof(struct device)); 
 
-  (*client_device)->id = device_count;
-  device_count++;
-  (*client_device)->type = strdup(type);
-  (*client_device)->ip = strdup(ip);
-  (*client_device)->port = atoi(port);
-  (*client_device)->area = atoi(area);
-  (*client_device)->value = strdup("off");
-  (*client_device)->socket = sock;
-  insert(client_device);
-
-  if(strcmp("sensor",(*client_device)->type)==0){
-    snprintf(buffer,sizeof(buffer),"Type:switch;Action:on\0");
-    write((*client_device)->socket,buffer,strlen(buffer)+1);
+  if (strcmp(type,"backGate")==0){
+    b.ip = strdup(ip);
+    b.port =atoi(port);
+    b.socket = sock;
   }
+  else{
+    (*client_device)->id = device_count;
+    device_count++;
+    (*client_device)->type = strdup(type);
+    (*client_device)->ip = strdup(ip);
+    (*client_device)->port = atoi(port);
+    (*client_device)->value = strdup("off");
+    (*client_device)->socket = sock;
+    insert(client_device);
+  }
+  printf("REGISTERED\n");
+  //if(strcmp("sensor",(*client_device)->type)==0){
+  //  snprintf(buffer,sizeof(buffer),"Type:switch;Action:on\0");
+  //  write((*client_device)->socket,buffer,strlen(buffer)+1);
+  //}
   //else{//remove later
   //  print_list();
   //}
@@ -156,58 +172,20 @@ void register_node(struct device **client_device,char *action,int sock){
 //Also check the value against the threshhold. Take appropriate action.
 //else do nothing
 void update(struct device **client_device,char *action){
+  
+}
+
+//Send a clear to each device excluding backGate
+//Type:clear:Action:value-(MULTI_DEVICES) + 1 gateway
+void sendClears(){
+  char buffer[1024];
   struct node* temp = list;
   struct device* temp_device;
-  char buffer[1024];
-  int temp_val = atoi(action);
-  int turn_off = 1;//Flag to check multiple sensors in area
-  
-  //printf("the value is %d\n",temp_val);
-  
-  if (strcmp((*client_device)->value,action)!=0){
-    free((*client_device)->value);
-    (*client_device)->value = strdup(action);
-    print_list();//Print since value changed
-  }
-  
-  if (temp_val<32){//Turn on devices if the temp is less than 32
-    while (temp != NULL){
-      temp_device = temp->data;
-      if((strcmp(temp_device->type,"device")==0)&&
-	 (temp_device->area==(*client_device)->area)&&
-	 (strcmp(temp_device->value,"off")==0)){
-	
-	snprintf(buffer,sizeof(buffer),"Type:switch;Action:on\0");
-	write(temp_device->socket,buffer,strlen(buffer)+1);
-      }
-      temp = temp->next;
-    }
-  }
-  else if (temp_val>34){//Turn off devices in area
-    while (temp != NULL){
-      temp_device = temp->data;
-      if ((temp_device->area==(*client_device)->area)&&//not ok to turn off devices
-	  (strcmp(temp_device->value,"on")!=0)&&
-	  (strcmp(temp_device->value,"off")!=0)&&
-	  (atoi(temp_device->value)<32)){
-	turn_off = 0;
-      }
-      temp = temp->next;
-    }
-    if (turn_off){
-      temp = list;//find devices to turn off
-      while (temp != NULL){
-	temp_device = temp->data;
-	if((strcmp(temp_device->type,"device")==0)&&
-	   (temp_device->area==(*client_device)->area)&&
-	   (strcmp(temp_device->value,"on")==0)){
-	  
-	  snprintf(buffer,sizeof(buffer),"Type:switch;Action:off\0");
-	  write(temp_device->socket,buffer,strlen(buffer)+1);
-	}
-	temp = temp->next;
-      }
-    }
+  while (temp != NULL){
+    temp_device = temp->data;
+    snprintf(buffer,sizeof(buffer),"Type:clear;Action:%d-%d\0",temp_device->id,MULTI_DEVICES+1);
+    write(temp_device->socket,buffer,strlen(buffer)+1);
+    temp = temp->next;
   }
 }
 
@@ -232,6 +210,9 @@ void identify(struct device **client_device,char *msg,int socket){
   }
   if (strcmp(type,"register")==0){
     register_node(client_device,action,socket);
+    if (device_count == MULTI_DEVICES){//All devices registered
+      sendClears();
+    }
   }
   else if (strcmp(type,"currState")==0){
     if (strcmp(action,"on")==0){
@@ -314,7 +295,6 @@ void* multicast_listener(){
   addrlen = sizeof(addr);
   
   if (bind(sock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {        
-
     perror("bind");
     exit(1);
   }    
@@ -343,12 +323,14 @@ int main(int argc , char *argv[])
   //Add arguments
   readConfig(argv[1]);
 
+  //Start Listening on Multichannel
   pthread_t multi;
+  g.clock = malloc((MULTI_DEVICES+1)*sizeof(int));
   if (pthread_create(&multi,NULL,multicast_listener,NULL) < 0){
     perror("Could not create new thread");
     return 1;
   }
-  
+      
   int socket_desc , client_sock , c , read_size,*new_sock;
   struct sockaddr_in server , client;
      
