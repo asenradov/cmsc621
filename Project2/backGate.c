@@ -27,8 +27,8 @@ struct node{
   struct node* next;
 };
 
-Gateway s;//me
-Gateway g;
+Gateway front; //frontEnd
+Gateway back; //backEnd
 struct node* list;
 
 //inserts to list
@@ -80,9 +80,9 @@ void readConfig(char* file){
   }
   
   //printf("%s\n",raw);
-  g.ip = strdup(strtok(raw,":"));
+  front.ip = strdup(strtok(raw,":"));
   token = strtok(NULL,":");
-  g.port = atoi(token);
+  front.port = atoi(token);
   //printf("port: %d\n",g.port);
 
   if (getline(&raw, &len, fp) == -1){
@@ -91,9 +91,9 @@ void readConfig(char* file){
   }
 
   //set my info
-  s.ip = strdup(strtok(raw,":"));
+  back.ip = strdup(strtok(raw,":"));
   token = strtok(NULL,":");
-  s.port = atoi(token);
+  back.port = atoi(token);
   
   free(raw);
   fclose(fp);
@@ -167,9 +167,9 @@ int main(int argc , char *argv[])
     }
   //puts("Socket created");
   
-  server.sin_addr.s_addr = inet_addr(g.ip);
+  server.sin_addr.s_addr = inet_addr(front.ip);
   server.sin_family = AF_INET;
-  server.sin_port = htons(g.port);
+  server.sin_port = htons(front.port);
  
   //Connect to remote server
   if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0)
@@ -182,7 +182,7 @@ int main(int argc , char *argv[])
 
   //Register
   char buffer[1024];
-  snprintf(buffer,sizeof(buffer),"Type:register;Action:%s-%s-%d-%d\0",s.type,s.ip,s.port,s.area);
+  snprintf(buffer,sizeof(buffer),"Type:register;Action:%s-%s-%d\0","Backend",back.ip,back.port);
   send(sock,buffer,strlen(buffer)+1,0);
 
   //keep communicating with server
