@@ -14,6 +14,7 @@
 typedef struct{
   int port;
   char* ip;
+  int sock;
 } Gateway;
 
 typedef struct{
@@ -50,6 +51,10 @@ Gateway g;
 int interval = 5;//default
 int max_time;
 struct node* list;
+pthread_mutex_t mutex;
+
+//Prototype
+void identify(char* command);
 
 //inserts to list
 void insert(struct time_state* addition){
@@ -175,62 +180,44 @@ void *iterate(){//add addr stuff
   int a;
   
   //TODO: Send Time as well as type
-  if (strcmp(s.type,"doorSensor")!=0){
-    while(1){
-      temp = list;
-      while(temp != NULL){
-	temp_val = temp->data;
-	if (time<=(temp_val->end)&& (time>=(temp_val->start))){
-	  printf("I AM SENDING Time:%d  do %s\n",time,temp_val->state);
+  while(1){
+    temp = list;
+    while(temp != NULL){
+      temp_val = temp->data;
+      //Works with doorSensor
+      if (time == (temp_val->start) || time<=(temp_val->end)&& (time>=(temp_val->start))){
+	printf("I AM SENDING Time:%d  do %s\n",time,temp_val->state);
+
 	
-	  //Increment Clock
-	  s.clock[s.id]++;
-	  snprintf(buffer,sizeof(buffer),"Type:currValue;Action:%d",s.clock[0]);
-	  for(a=1; a< s.clock_size;a++){
-	    snprintf(tempbuf,sizeof(tempbuf),",%d",s.clock[a]);
-	    strcat(buffer,tempbuf);
-	  }
-	  snprintf(tempbuf,sizeof(tempbuf),"-%s\0",temp_val->state);
+	//Increment Clock
+	pthread_mutex_lock(&mutex);
+	s.clock[s.id]++;
+	pthread_mutex_unlock(&mutex);
+
+	snprintf(buffer,sizeof(buffer),"Type:currValue;Action:%d",s.clock[0]);
+	for(a=1; a< s.clock_size;a++){
+	  snprintf(tempbuf,sizeof(tempbuf),",%d",s.clock[a]);
 	  strcat(buffer,tempbuf);
-	  
-	  sendto(m.sock,buffer, strlen(buffer)+1, 0,(struct sockaddr*)&m.addr,m.addrlen);
 	}
-	temp = temp->next;
+	snprintf(tempbuf,sizeof(tempbuf),"-%d",s.id);
+	strcat(buffer,tempbuf);
+	
+	snprintf(tempbuf,sizeof(tempbuf),"-%s",temp_val->state);
+	strcat(buffer,tempbuf);
+	
+	snprintf(tempbuf,sizeof(tempbuf),"-%s\0",s.type);
+	strcat(buffer,tempbuf);	
+	
+	sendto(m.sock,buffer, strlen(buffer)+1, 0,(struct sockaddr*)&m.addr,m.addrlen);
+
+	
       }
-      sleep(interval);
-      time += interval;
-      if (time>max_time){
-	time = time-max_time;     
-      }
+      temp = temp->next;
     }
-  }
-  else{//DOOR SENSOR
-    while(1){
-      temp = list;
-      while(temp != NULL){
-	temp_val = temp->data;
-	if (time==(temp_val->start)){
-	  printf("I AM SENDING Time:%d  do %s\n",time,temp_val->state);
-	
-	  //Increment Clock
-	  s.clock[s.id]++;
-	  snprintf(buffer,sizeof(buffer),"Type:currValue;Action:%d",s.clock[0]);
-	  for(a=1; a< s.clock_size;a++){
-	    snprintf(tempbuf,sizeof(tempbuf),",%d",s.clock[a]);
-	    strcat(buffer,tempbuf);
-	  }
-	  snprintf(tempbuf,sizeof(tempbuf),"-%s\0",temp_val->state);
-	  strcat(buffer,tempbuf);
-	  
-	  sendto(m.sock,buffer, strlen(buffer)+1, 0,(struct sockaddr*)&m.addr,m.addrlen);
-	}
-	temp = temp->next;
-      }
-      sleep(1);
-      time += interval;
-      if (time>max_time){
-	time = 0;
-      }
+    sleep(interval);
+    time += interval;
+    if (time>max_time){
+      time = time-max_time;     
     }
   }
 }
@@ -240,7 +227,8 @@ void* multicast_listener(){
   int addrlen, sock, cnt;
   struct ip_mreq mreq;
   char message[50];
-  pthread_t thread;
+  int reuse = 1;
+  //int loop = 0;
 
   /* set up socket */
   sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -250,14 +238,20 @@ void* multicast_listener(){
   }
   bzero((char *)&addr, sizeof(addr));
   addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  addr.sin_addr.s_addr = inet_addr(GROUP_IP);
   addr.sin_port = htons(GROUP_PORT);
   addrlen = sizeof(addr);
+
+  if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) == -1) {
+    perror("setsockopt reuse");
+    return 1;
+  }
   
-  /* if (bind(sock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {      
-     perror("bind");
-     exit(1);
-     } */   
+  if (bind(sock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {      
+    perror("bind");
+    exit(1);
+  }
+
   mreq.imr_multiaddr.s_addr = inet_addr(GROUP_IP);         
   mreq.imr_interface.s_addr = htonl(INADDR_ANY);         
   if (setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
@@ -266,14 +260,16 @@ void* multicast_listener(){
     exit(1);
   }
 
+  /*if ( setsockopt(sock, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop))){
+    perror("setsockopt loop");
+    exit(1);
+  }*/
+  
   //reocrd data
   m.addr = addr;
   m.addrlen = addrlen;
   m.sock = sock;
-  
-  //start thread
-  pthread_create(&thread,NULL,iterate,NULL);
-	
+  	
   while (1) {
     cnt = recvfrom(sock, message, sizeof(message), 0, 
 		   (struct sockaddr *) &addr, &addrlen);
@@ -283,17 +279,18 @@ void* multicast_listener(){
     } else if (cnt == 0) {
       break;
     }
+    
     printf("%s: message = \"%s\"\n", inet_ntoa(addr.sin_addr), message);
+    identify(message);
   }
 }
 
 //Decodes the message from the gateway
-void identify(int gate_sock,char* command){
+void identify(char* command){
   //printf("msg: %s\n",command);
   char * type;
   char * action;
   char buffer[1024];
-  pthread_t multi;
   strtok(command,":");
   type = strtok(NULL,":");
   action = strtok(NULL,":");
@@ -308,37 +305,51 @@ void identify(int gate_sock,char* command){
     return 0;
   }
 
-  //Create vector and Start multicast
+  //Create vector
   if (strcmp(type,"clear")==0){
     s.id = atoi(strtok(action,"-"));
     s.clock_size = atoi(strtok(NULL,"-"));
     s.clock = malloc(s.clock_size*sizeof(int));
     
-    //Start iterating
-    if (pthread_create(&multi,NULL,multicast_listener,NULL) < 0){
-      perror("Could not create new thread");
-      return 1;
+    //start thread
+    pthread_t thread;
+    pthread_create(&thread,NULL,iterate,NULL);
+  
+  }
+  else if (strcmp(type,"currValue")==0){
+    int* temp_clock[s.clock_size];
+    int a;
+    //Parse
+    (strtok(action,"-"));
+    if(s.id!=atoi(strtok(NULL,"-"))){//Discard Loopback
+      (strtok(NULL,"-"));//Value (not needed)
+      (strtok(NULL,"-"));//Type (not needed)
+      
+      temp_clock[0] = (atoi(strtok(action,",")));
+      for (a = 1; a<s.clock_size; a++){
+	temp_clock[a] = (atoi(strtok(NULL,",")));
+      }
+
+      //synch clock
+      pthread_mutex_lock(&mutex);
+      //increment own clock upon recieving
+      s.clock[s.id]++;
+
+      for (a=0; a<s.clock_size; a++){
+	if (temp_clock[a]>s.clock[a]){
+	  s.clock[a] = temp_clock[a];
+	}
+      }
+      pthread_mutex_unlock(&mutex);
+
+     
+      puts("NEW CLOCK");
+      for (a=0; a<s.clock_size;a++){
+	printf(",%d",s.clock[a]);
+      }
+      printf("\n");
     }
   }
-  /*if (strcmp(type,"switch")==0){
-    s.state = !s.state;
-    if(s.state){//ON
-    snprintf(buffer,sizeof(buffer),"Type:currState;Action:on\0");
-    if (strcmp(s.type,"sensor")==0){
-    //start thread
-    pthread_create(&thread,NULL,iterate,&gate_sock);
-    }
-    }
-    else{
-    snprintf(buffer,sizeof(buffer),"Type:currState;Action:off\0");
-    }
-    send(gate_sock,buffer, strlen(buffer)+1, 0);
-    }
-    else if (strcmp(type,"setInterval")==0){
-    if (strcmp(s.type,"sensor")==0){
-    interval = atoi(action);
-    }
-    }*/
 }
 
 
@@ -356,12 +367,20 @@ int main(int argc , char *argv[])
     printf("Error opening file\n");
     exit(1);
   }
+
+  //Start listening on multicast
+  pthread_t multi;
+  if (pthread_create(&multi,NULL,multicast_listener,NULL) < 0){
+    perror("Could not create new thread");
+    return 1;
+  }
   
   struct sockaddr_in server;
   char message[1000] , server_reply[2000];
      
   //Create socket
   sock = socket(AF_INET , SOCK_STREAM , 0);
+  g.sock = sock;
   if (sock == -1)
     {
       printf("Could not create socket");
@@ -396,7 +415,7 @@ int main(int argc , char *argv[])
 	  break;
         }
       else{
-	identify(sock,server_reply);
+	identify(server_reply);
       }
     }
 

@@ -11,7 +11,7 @@
 
 #define GROUP_PORT 6000
 #define GROUP_IP "239.0.0.1"
-#define MULTI_DEVICES 1 //Exculding Gateway
+#define MULTI_DEVICES 2 //Exculding Gateway
 //5th device is gateway
 //<0,1,2,3,4>
 
@@ -29,6 +29,7 @@ typedef struct{
   char *ip;
   int socket;
   int registered;
+
 }BackGate;
   
 struct node{
@@ -213,7 +214,6 @@ void identify(struct device **client_device,char *msg,int socket){
   if (strcmp(type,"register")==0){
     register_node(client_device,action,socket);
     if (device_count == MULTI_DEVICES && b.registered){//All devices registered
-      //TODO: MAKE SURE BACKGATE IS REGISTERED AS WELL
       sendClears();
     }
   }
@@ -284,6 +284,7 @@ void* multicast_listener(){
   int addrlen, sock, cnt;
   struct ip_mreq mreq;
   char message[50];
+  int reuse = 1;
 
   /* set up socket */
   sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -293,14 +294,21 @@ void* multicast_listener(){
   }
   bzero((char *)&addr, sizeof(addr));
   addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  addr.sin_addr.s_addr = inet_addr(GROUP_IP);
+  //addr.sin_addr.s_addr = htonl(INADDR_ANY);
   addr.sin_port = htons(GROUP_PORT);
   addrlen = sizeof(addr);
+
+  if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) == -1) {
+    perror("setsockopt reuse");
+    return 1;
+  }
   
   if (bind(sock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {        
     perror("bind");
     exit(1);
-  }    
+  }
+  
   mreq.imr_multiaddr.s_addr = inet_addr(GROUP_IP);         
   mreq.imr_interface.s_addr = htonl(INADDR_ANY);         
   if (setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
