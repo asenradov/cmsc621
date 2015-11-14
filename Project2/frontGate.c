@@ -28,6 +28,7 @@ typedef struct{
   int port;
   char *ip;
   int socket;
+  int registered;
 }BackGate;
   
 struct node{
@@ -144,8 +145,9 @@ void register_node(struct device **client_device,char *action,int sock){
 
   if (strcmp(type,"backGate")==0){
     b.ip = strdup(ip);
-    b.port =atoi(port);
+    b.port = atoi(port);
     b.socket = sock;
+    b.registered = 1;
   }
   else{
     (*client_device)->id = device_count;
@@ -210,7 +212,7 @@ void identify(struct device **client_device,char *msg,int socket){
   }
   if (strcmp(type,"register")==0){
     register_node(client_device,action,socket);
-    if (device_count == MULTI_DEVICES){//All devices registered
+    if (device_count == MULTI_DEVICES && b.registered){//All devices registered
       //TODO: MAKE SURE BACKGATE IS REGISTERED AS WELL
       sendClears();
     }

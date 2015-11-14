@@ -28,6 +28,7 @@ typedef struct{
   int port;
   char* ip;
   int* clock;
+  int clock_size;
 }Sensor;
 
 //Holds the times and temps
@@ -170,7 +171,9 @@ void *iterate(){//add addr stuff
   struct time_state* temp_val;
   //printf("MAXTIME %d\n",max_time);
   char buffer[1024];
-
+  char tempbuf[60];
+  int a;
+  
   //TODO: Send Time as well as type
   if (strcmp(s.type,"doorSensor")!=0){
     while(1){
@@ -181,8 +184,15 @@ void *iterate(){//add addr stuff
 	  printf("I AM SENDING Time:%d  do %s\n",time,temp_val->state);
 	
 	  //Increment Clock
-	  s.clock++;
-	  snprintf(buffer,sizeof(buffer),"Type:currValue;Action:%s\0",temp_val->state);
+	  s.clock[s.id]++;
+	  snprintf(buffer,sizeof(buffer),"Type:currValue;Action:%d",s.clock[0]);
+	  for(a=1; a< s.clock_size;a++){
+	    snprintf(tempbuf,sizeof(tempbuf),",%d",s.clock[a]);
+	    strcat(buffer,tempbuf);
+	  }
+	  snprintf(tempbuf,sizeof(tempbuf),"-%s\0",temp_val->state);
+	  strcat(buffer,tempbuf);
+	  
 	  sendto(m.sock,buffer, strlen(buffer)+1, 0,(struct sockaddr*)&m.addr,m.addrlen);
 	}
 	temp = temp->next;
@@ -200,11 +210,18 @@ void *iterate(){//add addr stuff
       while(temp != NULL){
 	temp_val = temp->data;
 	if (time==(temp_val->start)){
-	  //printf("I AM SENDING Time:%d  do %s\n",time,temp_val->temp);
+	  printf("I AM SENDING Time:%d  do %s\n",time,temp_val->state);
 	
 	  //Increment Clock
-	  s.clock++;
-	  snprintf(buffer,sizeof(buffer),"Type:currValue;Action:%s\0",temp_val->state);
+	  s.clock[s.id]++;
+	  snprintf(buffer,sizeof(buffer),"Type:currValue;Action:%d",s.clock[0]);
+	  for(a=1; a< s.clock_size;a++){
+	    snprintf(tempbuf,sizeof(tempbuf),",%d",s.clock[a]);
+	    strcat(buffer,tempbuf);
+	  }
+	  snprintf(tempbuf,sizeof(tempbuf),"-%s\0",temp_val->state);
+	  strcat(buffer,tempbuf);
+	  
 	  sendto(m.sock,buffer, strlen(buffer)+1, 0,(struct sockaddr*)&m.addr,m.addrlen);
 	}
 	temp = temp->next;
@@ -294,8 +311,9 @@ void identify(int gate_sock,char* command){
   //Create vector and Start multicast
   if (strcmp(type,"clear")==0){
     s.id = atoi(strtok(action,"-"));
-    s.clock = malloc(atoi(strtok(NULL,"-"))*sizeof(int));
- 
+    s.clock_size = atoi(strtok(NULL,"-"));
+    s.clock = malloc(s.clock_size*sizeof(int));
+    
     //Start iterating
     if (pthread_create(&multi,NULL,multicast_listener,NULL) < 0){
       perror("Could not create new thread");
