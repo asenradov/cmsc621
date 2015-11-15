@@ -6,13 +6,15 @@ Message Formats. This is more complicated.
 Messages will be past between the multichannel and the uni channel
 BackGate is not part of the multichannel
 
-Everything to gateway
+Everything to Multicast
 -------------------------------------
+currValue (Multichannel)
+	Type:currValue;Action:clock(comma seperated)-id-state-type
+
+Multicast to Gateway
+-------------------------------
 register (Unichannel)
 	Type:register;Action:clock-deviceType-ip-port
-currValue (Multichannel)
-	Type:currValue;Action:clock-state
-
 
 Front Gate to Back Gate
 -------------------------
@@ -35,8 +37,3 @@ Gateway to Sensors
 clear
 	Type:clear;Action:deviceNum-numDevices(5);
 
-
-Key ToDos (personal questions)
----------------
-Central Synchronization vs Distributed Synchronization
-Clocks

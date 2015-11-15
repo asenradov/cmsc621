@@ -333,6 +333,10 @@ void multi_identify(char *msg){
 	}
       }
     }
+    //send new value to backend
+    puts("SENDING TO BACKEND");
+    send(b.socket,buffer,strlen(buffer)+1,0);
+    
     if (record&&key){//All criteria met. Determine what to do with deivce
        puts("CHECKING SYSTEM");
       //Short circut. Turn on system if off
@@ -360,9 +364,6 @@ void multi_identify(char *msg){
 	key = 0;
       }
     }
-    
-    //printf("%s\n",(*recentDoor).ip);
-    send(b.socket,buffer,strlen(buffer)+1,0);
   }
 }
 
