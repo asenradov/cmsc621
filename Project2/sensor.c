@@ -159,6 +159,7 @@ void readInput(char* file){
   else{
     max_time = entry->start;
   }
+  max_time++;//add one cuz inclusive
   //printf("MAC TIME%d\n",max_time);
   //print list to test
   //printf("TEST: %d,%d,%s\n",entry->start,entry->end,entry->temp);
@@ -169,8 +170,8 @@ void readInput(char* file){
 //Thread
 //writes the time to the gateway at every interval
 void *iterate(){//add addr stuff
-  print_list();
-  printf("IM A THREAD: %d\n",pthread_self());
+  //print_list();
+  //printf("IM A THREAD: %d\n",pthread_self());
   int time = 0;
   struct node* temp;
   struct time_state* temp_val;
@@ -217,7 +218,7 @@ void *iterate(){//add addr stuff
     sleep(interval);
     time += interval;
     if (time>max_time){
-      time = time-max_time;     
+      time = time%max_time;     
     }
   }
 }
@@ -293,13 +294,10 @@ void identify(char* command){
   char buffer[1024];
   strtok(command,":");
   type = strtok(NULL,":");
-  action = strtok(NULL,":");
-  
-  printf("action: %s\n",action);
-
+  action = strtok(NULL,":"); 
+  //printf("action: %s\n",action);
   type = strtok(type,";");
-  
-  printf("type: %s\n",type);
+  //printf("type: %s\n",type);
 
   if (type == NULL || action == NULL){
     return 0;
@@ -323,9 +321,7 @@ void identify(char* command){
     //Parse
     (strtok(action,"-"));
     if(s.id!=atoi(strtok(NULL,"-"))){//Discard Loopback
-      (strtok(NULL,"-"));//Value (not needed)
-      (strtok(NULL,"-"));//Type (not needed)
-      
+            
       temp_clock[0] = (atoi(strtok(action,",")));
       for (a = 1; a<s.clock_size; a++){
 	temp_clock[a] = (atoi(strtok(NULL,",")));
@@ -344,7 +340,7 @@ void identify(char* command){
       pthread_mutex_unlock(&mutex);
 
      
-      puts("NEW CLOCK");
+      printf("NEW CLOCK ");
       for (a=0; a<s.clock_size;a++){
 	printf(",%d",s.clock[a]);
       }
@@ -362,13 +358,15 @@ int main(int argc , char *argv[])
   readConfig(argv[1]);
   readInput(argv[2]);
 
-  //change (should take care of writing only when writing)
+  //create and clear the file
   FILE *f = fopen(argv[3],"w");
   if (f==NULL){
     printf("Error opening file\n");
     exit(1);
   }
 
+  fclose(f);
+  
   //Start listening on multicast
   pthread_t multi;
   if (pthread_create(&multi,NULL,multicast_listener,NULL) < 0){
@@ -421,7 +419,6 @@ int main(int argc , char *argv[])
       }
     }
 
-  fclose(f);
   close(sock);
   return 0;
 }

@@ -11,7 +11,7 @@
 
 #define GROUP_PORT 6000
 #define GROUP_IP "239.0.0.1"
-#define MULTI_DEVICES 2 //Exculding Gateway
+#define MULTI_DEVICES 3 //Exculding Gateway
 //5th device is gateway
 //<0,1,2,3,4>
 
@@ -51,12 +51,16 @@ struct node* list;
 struct device* recentMotion;
 struct device* recentKey;
 struct device* recentDoor;
+struct device* security;
 
 pthread_mutex_t mutex;
 
 int device_count = 0;
 Gateway g;
 BackGate b;
+int record = 0;//When door close even occurs 1
+int motion = 0;// Valid motion avalible
+int key = 0; //Valid Key avalible
 
 //print the list of devices
 void print_list(){
@@ -66,9 +70,7 @@ void print_list(){
   while (temp != NULL){
     temp_device = temp->data;
     //Do not print if the sensor is just on for some reason...
-    if((strcmp(temp_device->type,"sensor")==0 && strcmp(temp_device->value,"on")!=0) || strcmp(temp_device->type,"device")==0){
-      printf("%d----%s:%d----%s----%s\n",temp_device->id,temp_device->ip,temp_device->port,temp_device->type,temp_device->value);
-    }
+    printf("%d----%s:%d----%s----%s\n",temp_device->id,temp_device->ip,temp_device->port,temp_device->type,temp_device->value);
     temp = temp->next;
   }
   printf("-----------------------------------------------------\n");
@@ -165,9 +167,10 @@ void register_node(struct device **client_device,char *action,int sock){
     (*client_device)->type = strdup(type);
     (*client_device)->ip = strdup(ip);
     (*client_device)->port = atoi(port);
-    (*client_device)->value = strdup("off");
+    (*client_device)->value = strdup("off");//Device starts off User is home
     (*client_device)->socket = sock;
-    (*client_device)->clock = malloc(MULTI_DEVICES*sizeof(int));
+    (*client_device)->clock = malloc(g.clock_size*sizeof(int));
+    memset((*client_device)->clock,0,g.clock_size*sizeof(int));
 
     if (strcmp((*client_device)->type,"motionSensor")==0){
       recentMotion = (*client_device);
@@ -178,17 +181,12 @@ void register_node(struct device **client_device,char *action,int sock){
     else if(strcmp((*client_device)->type,"doorSensor")==0){
       recentDoor = (*client_device);
     }
+    else if(strcmp((*client_device)->type,"device")==0){
+      security = (*client_device);
+    }
     insert(client_device);
   }
   printf("REGISTERED: %d\n",(*client_device)->id);
-}
-
-//check if the new value is different.
-//If it is update the value
-//Also check the value against the threshhold. Take appropriate action.
-//else do nothing
-void update(struct device **client_device,char *action){
-  
 }
 
 //Send a clear to each device excluding backGate
@@ -217,17 +215,18 @@ void multi_identify(char *msg){
   strtok(msg,":");
   type = strtok(NULL,":");
   action = strtok(NULL,":");
-  printf("action: %s\n",action);
+  //printf("action: %s\n",action);
   type = strtok(type,";");
-  printf("type: %s\n",type);
+  //printf("type: %s\n",type);
   
   if (strcmp(type,"currValue")==0){
     int* temp_clock[g.clock_size];
     int a;
     //Parse
     id = atoi(strtok(action,"-"));
-    value = (strtok(NULL,"-"));//Value (not needed)
-    senseType = (strtok(NULL,"-"));//Type (not needed)
+    (strtok(NULL,"-"));//Parse
+    value = (strtok(NULL,"-"));//Value
+    senseType = (strtok(NULL,"-"));//Type
     
     temp_clock[0] = (atoi(strtok(action,",")));
     for (a = 1; a<g.clock_size; a++){
@@ -246,7 +245,7 @@ void multi_identify(char *msg){
     }
     pthread_mutex_unlock(&mutex);
     
-    puts("NEW CLOCK");
+    printf("NEW CLOCK ");
     for (a=0; a<g.clock_size;a++){
       printf(",%d",g.clock[a]);
     }
@@ -254,21 +253,116 @@ void multi_identify(char *msg){
 
     //Log to backend
     time_t diff = difftime(time(NULL),0);
-    
-    if (strcmp(senseType,"doorSensor")){
+    int newest = 0;//1 if data is newer
+    puts("BEGIN TESTING");
+    if (strcmp(senseType,"doorSensor")==0){
+      puts("FOUND DOOR");
       snprintf(buffer,sizeof(buffer),"Type:insert;Action:%d,%s,%s,%d,%s,%d\0",id,senseType,value,diff,(*recentDoor).ip,(*recentDoor).port);
-     
+      (*recentDoor).clock;
+      //Update clock
+      for (a =0; a< g.clock_size; a++){
+	if ((*recentDoor).clock[a]<temp_clock[a]){
+	  newest = 1;
+	  (*recentDoor).clock[a] = temp_clock[a];
+	  //puts("CLOCK UPDATED");
+	}
+      }
+      if (newest){//New data is valid
+	(*recentDoor).value = value;
+	if (strcmp(value,"Close")==0){//Door close. record
+	  puts("RECORDING");
+	  record = 1;//flag to record recent values
+	  //check if recentmotion and recentkey are more recent
+	  for (a =0; a< g.clock_size; a++){
+	    if ((*recentDoor).clock[a]<(*recentMotion).clock[a]){
+	      motion = 1;
+	    }
+	    if ((*recentDoor).clock[a]<(*recentKey).clock[a]){
+	      key = 1;
+	    }
+	  }
+	}
+	else{
+	  puts("STOP RECORDING");
+	  record = 0;
+	  motion = 0;
+	  key = 0;
+	}
+      }
     }
-    else if (strcmp(senseType,"keySensor")){
+    else if (strcmp(senseType,"keySensor")==0){
+      puts("FOUND KEY");
       snprintf(buffer,sizeof(buffer),"Type:insert;Action:%d,%s,%s,%d,%s,%d\0",id,senseType,value,diff,(*recentKey).ip,(*recentKey).port);
+      for (a =0; a< g.clock_size; a++){
+	if ((*recentKey).clock[a]<temp_clock[a]){
+	  newest = 1;
+	  (*recentKey).clock[a] = temp_clock[a];
+	}
+      }
+      if (newest){//New Data is valid
+	(*recentKey).value = value;
+      }
+      //check if the event happened after
+      if (record){
+	for (a =0; a< g.clock_size; a++){
+	  if ((*recentKey).clock[a]>(*recentDoor).clock[a]){
+	    key =1;
+	  }
+	}
+      }
     }
-    else if(strcmp(senseType,"motionSensor")){
-      snprintf(buffer,sizeof(buffer),"Type:insert;Action:%d,%s,%s,%d,%s,%s\d",id,senseType,value,diff,(*recentMotion).ip,(*recentMotion).port);
+    else if(strcmp(senseType,"motionSensor")==0){
+      puts("FOUND MOTION");
+      snprintf(buffer,sizeof(buffer),"Type:insert;Action:%d,%s,%s,%d,%s,%d\0",id,senseType,value,diff,(*recentMotion).ip,(*recentMotion).port);
+      for (a =0; a< g.clock_size; a++){
+	if ((*recentMotion).clock[a]<temp_clock[a]){
+	  newest = 1;
+	  (*recentMotion).clock[a] = temp_clock[a];
+	}
+      }
+      if (newest){
+	(*recentMotion).value = value;
+      }
       
+      //check if the event happened after
+      if (record){
+	for (a =0; a< g.clock_size; a++){
+	  if ((*recentMotion).clock[a]>(*recentDoor).clock[a]){
+	    motion = 1;
+	  }
+	}
+      }
     }
+    if (record&&key){//All criteria met. Determine what to do with deivce
+       puts("CHECKING SYSTEM");
+      //Short circut. Turn on system if off
+      if (strcmp("True",(*recentKey).value)==0){
+	if (strcmp("on",(*security).value)==0){
+	  //Send turn off
+	  printf("User In. Turn off\n");
+	}
+      }
+      else if (motion){//Check the motion or wait
+	if (strcmp("True",(*recentMotion).value)==0){//Intruder!
+	  if (strcmp("on",(*security).value)==0){
+	    
+	  }
+	}
+	else{//User left
+	  puts("CRASH TURN IT OFF");
+	  if (strcmp("off",(*security).value)==0){
+	    //Send turn on
+	    printf("User left. Turn on\n");
+	  }
+	}
+	record = 0;
+	motion = 0;
+	key = 0;
+      }
+    }
+    
     //printf("%s\n",(*recentDoor).ip);
-     printf("%s\n",buffer);
-    //send(b.socket,message,strlen(message)+1,0);
+    send(b.socket,buffer,strlen(buffer)+1,0);
   }
 }
 
@@ -335,7 +429,7 @@ void *connection_handler(void *socket_desc){
     {
       //free the node
       //unique socket
-      remove_node(client_sock);
+      //remove_node(client_sock);
 
       //puts("Client disconnected");
       fflush(stdout);
@@ -355,7 +449,7 @@ void* multicast_listener(){
   struct sockaddr_in addr;
   int addrlen, sock, cnt;
   struct ip_mreq mreq;
-  char message[50];
+  char message[100];
   int reuse = 1;
 
   /* set up socket */
@@ -407,6 +501,15 @@ int main(int argc , char *argv[])
   //Add arguments
   readConfig(argv[1]);
 
+  //create and clear the file
+  FILE *f = fopen(argv[2],"w");
+  if (f==NULL){
+    printf("Error opening file\n");
+    exit(1);
+  }
+
+  fclose(f);
+  
   //Start Listening on Multichannel
   pthread_t multi;
   g.clock_size = MULTI_DEVICES+1;

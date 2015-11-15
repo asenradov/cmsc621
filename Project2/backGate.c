@@ -80,7 +80,14 @@ int main(int argc, char *argv[]) {
   int sock;
 
   readConfig(argv[1]);
-
+  
+  FILE *f = fopen(argv[2], "w");
+  if (f == NULL) {
+    printf("Error opening file\n");
+    exit(1);
+  }
+  fclose(f);
+  
   struct sockaddr_in server;
   char message[1000], server_reply[2000];
 
