@@ -186,8 +186,6 @@ void *iterate(){//add addr stuff
       temp_val = temp->data;
       //Works with doorSensor
       if (time == (temp_val->start) || time<=(temp_val->end)&& (time>=(temp_val->start))){
-	printf("I AM SENDING Time:%d  do %s\n",time,temp_val->state);
-
 	
 	//Increment Clock
 	pthread_mutex_lock(&mutex);
@@ -206,8 +204,10 @@ void *iterate(){//add addr stuff
 	strcat(buffer,tempbuf);
 	
 	snprintf(tempbuf,sizeof(tempbuf),"-%s\0",s.type);
-	strcat(buffer,tempbuf);	
+	strcat(buffer,tempbuf);
 	
+	printf("I AM SENDING Time:%d  do %s\n",time,buffer);
+
 	sendto(m.sock,buffer, strlen(buffer)+1, 0,(struct sockaddr*)&m.addr,m.addrlen);
 
 	
@@ -280,7 +280,7 @@ void* multicast_listener(){
       break;
     }
     
-    printf("%s: message = \"%s\"\n", inet_ntoa(addr.sin_addr), message);
+    printf("RECIVED: %s\n\0", message);
     identify(message);
   }
 }
@@ -310,6 +310,7 @@ void identify(char* command){
     s.id = atoi(strtok(action,"-"));
     s.clock_size = atoi(strtok(NULL,"-"));
     s.clock = malloc(s.clock_size*sizeof(int));
+    memset(s.clock,0,s.clock_size*sizeof(int));
     
     //start thread
     pthread_t thread;
@@ -381,6 +382,7 @@ int main(int argc , char *argv[])
   //Create socket
   sock = socket(AF_INET , SOCK_STREAM , 0);
   g.sock = sock;
+  
   if (sock == -1)
     {
       printf("Could not create socket");

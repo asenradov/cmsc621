@@ -15,13 +15,14 @@
 //5th device is gateway
 //<0,1,2,3,4>
 
-struct device{
+struct device{//Door,Motion,Key
   int id;
   char *type;
   int port;
   char *ip;
   char *value;
   int socket;
+  int* clock;
 };
 
 typedef struct{
@@ -38,13 +39,21 @@ struct node{
 };
 
 typedef struct{
+  int id;
   int port;
   char ip[255];
   int* clock;
+  int clock_size;
 } Gateway;
 
 //list
 struct node* list;
+struct device* recentMotion;
+struct device* recentKey;
+struct device* recentDoor;
+
+pthread_mutex_t mutex;
+
 int device_count = 0;
 Gateway g;
 BackGate b;
@@ -158,16 +167,20 @@ void register_node(struct device **client_device,char *action,int sock){
     (*client_device)->port = atoi(port);
     (*client_device)->value = strdup("off");
     (*client_device)->socket = sock;
+    (*client_device)->clock = malloc(MULTI_DEVICES*sizeof(int));
+
+    if (strcmp((*client_device)->type,"motionSensor")==0){
+      recentMotion = (*client_device);
+    }
+    else if(strcmp((*client_device)->type,"keySensor")==0){
+      recentKey = (*client_device);
+    }
+    else if(strcmp((*client_device)->type,"doorSensor")==0){
+      recentDoor = (*client_device);
+    }
     insert(client_device);
   }
-  printf("REGISTERED\n");
-  //if(strcmp("sensor",(*client_device)->type)==0){
-  //  snprintf(buffer,sizeof(buffer),"Type:switch;Action:on\0");
-  //  write((*client_device)->socket,buffer,strlen(buffer)+1);
-  //}
-  //else{//remove later
-  //  print_list();
-  //}
+  printf("REGISTERED: %d\n",(*client_device)->id);
 }
 
 //check if the new value is different.
@@ -184,6 +197,7 @@ void sendClears(){
   char buffer[1024];
   struct node* temp = list;
   struct device* temp_device;
+
   while (temp != NULL){
     temp_device = temp->data;
     snprintf(buffer,sizeof(buffer),"Type:clear;Action:%d-%d\0",temp_device->id,MULTI_DEVICES+1);
@@ -192,17 +206,81 @@ void sendClears(){
   }
 }
 
-//Decodes the message from the client
+void multi_identify(char *msg){
+  char* type;
+  char* action;
+  char* value;
+  char* senseType;
+  int id;
+  char buffer[1024];
+  struct node* temp = list;
+  strtok(msg,":");
+  type = strtok(NULL,":");
+  action = strtok(NULL,":");
+  printf("action: %s\n",action);
+  type = strtok(type,";");
+  printf("type: %s\n",type);
+  
+  if (strcmp(type,"currValue")==0){
+    int* temp_clock[g.clock_size];
+    int a;
+    //Parse
+    id = atoi(strtok(action,"-"));
+    value = (strtok(NULL,"-"));//Value (not needed)
+    senseType = (strtok(NULL,"-"));//Type (not needed)
+    
+    temp_clock[0] = (atoi(strtok(action,",")));
+    for (a = 1; a<g.clock_size; a++){
+      temp_clock[a] = (atoi(strtok(NULL,",")));
+    }
+    
+    //synch clock
+    pthread_mutex_lock(&mutex);
+    //increment own clock upon recieving
+    g.clock[g.id]++;
+
+    for (a=0; a<g.clock_size; a++){
+      if (temp_clock[a]>g.clock[a]){
+	g.clock[a] = temp_clock[a];
+      }
+    }
+    pthread_mutex_unlock(&mutex);
+    
+    puts("NEW CLOCK");
+    for (a=0; a<g.clock_size;a++){
+      printf(",%d",g.clock[a]);
+    }
+    printf("\n");
+
+    //Log to backend
+    time_t diff = difftime(time(NULL),0);
+    
+    if (strcmp(senseType,"doorSensor")){
+      snprintf(buffer,sizeof(buffer),"Type:insert;Action:%d,%s,%s,%d,%s,%d\0",id,senseType,value,diff,(*recentDoor).ip,(*recentDoor).port);
+     
+    }
+    else if (strcmp(senseType,"keySensor")){
+      snprintf(buffer,sizeof(buffer),"Type:insert;Action:%d,%s,%s,%d,%s,%d\0",id,senseType,value,diff,(*recentKey).ip,(*recentKey).port);
+    }
+    else if(strcmp(senseType,"motionSensor")){
+      snprintf(buffer,sizeof(buffer),"Type:insert;Action:%d,%s,%s,%d,%s,%s\d",id,senseType,value,diff,(*recentMotion).ip,(*recentMotion).port);
+      
+    }
+    //printf("%s\n",(*recentDoor).ip);
+     printf("%s\n",buffer);
+    //send(b.socket,message,strlen(message)+1,0);
+  }
+}
+
+//Decodes the message from the client UNICAST
 void identify(struct device **client_device,char *msg,int socket){
   //printf("msg: %s\n",msg);
   char * type;
   char * action;
-  //char buffer[1024];
+  char buffer[1024];
   strtok(msg,":");
   type = strtok(NULL,":");
-
   action = strtok(NULL,":");
-  
   type = strtok(type,";");
   
   //printf("type: %s\n",type);
@@ -216,15 +294,14 @@ void identify(struct device **client_device,char *msg,int socket){
     if (device_count == MULTI_DEVICES && b.registered){//All devices registered
       sendClears();
     }
+    //send register to backend
+    snprintf(buffer,sizeof(buffer),"Type:insertAction:Registered:%d:%s",(*client_device)->id,(*client_device)->type);
+    send(b.socket,buffer,strlen(buffer)+1,0);
   }
   else if (strcmp(type,"currState")==0){
     if (strcmp(action,"on")==0){
       free((*client_device)->value);
       (*client_device)->value = strdup("on");
-
-      //Test setInterval  
-      //snprintf(buffer,sizeof(buffer),"Type:setInterval;Action:10\0");
-      //write((*client_device)->socket,buffer,strlen(buffer)+1);
     }
     else{
       free((*client_device)->value);
@@ -234,11 +311,6 @@ void identify(struct device **client_device,char *msg,int socket){
     if(strcmp((*client_device)->type,"device")==0){
       print_list();
     }
-  }
-  else if (strcmp(type,"currValue")==0){
-    //printf("---> currValue: %s\n", (*client_device)->value);
-    //printf("---> action: %s\n", action);
-    update(client_device,action);
   }
 }
 
@@ -325,8 +397,8 @@ void* multicast_listener(){
     } else if (cnt == 0) {
       break;
     }
-    printf("%s: message = \"%s\"\n\0", inet_ntoa(addr.sin_addr), message);
-    send(b.socket,message,strlen(message)+1,0);
+    printf("RECIVED: %s\n\0", message);
+    multi_identify(message);
   }
 }
 
@@ -337,7 +409,11 @@ int main(int argc , char *argv[])
 
   //Start Listening on Multichannel
   pthread_t multi;
-  g.clock = malloc((MULTI_DEVICES+1)*sizeof(int));
+  g.clock_size = MULTI_DEVICES+1;
+  g.clock = malloc((g.clock_size)*sizeof(int));
+  memset(g.clock,0,g.clock_size*sizeof(int));
+  g.id = MULTI_DEVICES;
+  
   if (pthread_create(&multi,NULL,multicast_listener,NULL) < 0){
     perror("Could not create new thread");
     return 1;
@@ -387,10 +463,6 @@ int main(int argc , char *argv[])
       perror("Could not create new thread");
       return 1;
     }
-    
-    //pthread_join(sniffer_thread,NULL);
-    //puts("handler assigned");
-    
   }
   if (client_sock < 0)
     {
