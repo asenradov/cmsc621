@@ -38,6 +38,9 @@ Device s;//me
 Gateway g;
 pthread_mutex_t mutex;
 
+// Global pointer to the file
+FILE *f;
+
 //Prototype
 void identify(char* command);
 
@@ -130,7 +133,8 @@ void* multicast_listener(){
       break;
     }
     
-    printf("RECIVED: %s\n\0", message);
+    fprintf(f,"Recieved: %s\n", message);
+    fflush(f);
     identify(message);
   }
 }
@@ -183,31 +187,39 @@ void identify(char* command){
 	}
       }
       pthread_mutex_unlock(&mutex);
-   
-      printf("NEW CLOCK ");
-      for (a=0; a<s.clock_size;a++){
-	printf(",%d",s.clock[a]);
-      }
-      printf("\n");
+
+       fprintf(f,"NEW CLOCK: ");
+       fprintf(f,"%d",s.clock[0]);
+       for (a=1; a<s.clock_size;a++){
+	 fprintf(f,",%d",s.clock[a]);
+       }
+       fprintf(f,"\n");
+       fflush(f);
+    }
+    else{
+      fprintf(f,"Discarding loopback\n");
+      fflush(f);
     }
   }
   else if (strcmp(type,"switch")==0){//set value
     char * clock;
     int* temp_clock[s.clock_size];
-    printf("I MUST SWITCH!\n");
+    fprintf(f,"Switching!\n");
+    fflush(f);
     strtok(action,"-");
     clock = strtok(NULL,"-");
-    
-    printf("CLOCK %s\n",clock);
     
     if (strcmp(action,"on")==0){
       free(s.state);
       s.state = strdup("on");
-      puts("TURN IT ON");
+      fprintf(f,"Turning on\n");
+      fflush(f);
     }
     else{
       free(s.state);
       s.state = strdup("off");
+      fprintf(f,"Turning off\n");
+      fflush(f);
     }
 
     temp_clock[0] = (atoi(strtok(clock,",")));
@@ -245,7 +257,8 @@ void identify(char* command){
     snprintf(tempbuf,sizeof(tempbuf),"-%s\0",s.type);
     strcat(buffer,tempbuf);
     
-    printf("I AM SENDING: %s\n",buffer);
+    fprintf(f,"Sending: %s\n",buffer);
+    fflush(f);
     
     sendto(m.sock,buffer, strlen(buffer)+1, 0,(struct sockaddr*)&m.addr,m.addrlen);
   }
@@ -260,13 +273,11 @@ int main(int argc , char *argv[])
   readConfig(argv[1]);
 
   //create and clear the file
-  FILE *f = fopen(argv[2],"w");
+  f = fopen(argv[2],"w+");
   if (f==NULL){
     printf("Error opening file\n");
     exit(1);
   }
-
-  fclose(f);
   
   //Start listening on multicast
   pthread_t multi;

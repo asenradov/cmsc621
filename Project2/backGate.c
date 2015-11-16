@@ -59,9 +59,9 @@ void readConfig(char* file) {
 
 //insert info into back end file
 void insert(char* command) {
-  printf("msg: %s\n",command);
-  char *tmp;
-  char *garb1, *garb2, *garb3;
+  //printf("msg: %s\n",command);
+  //char *tmp;
+  // char *garb1, *garb2, *garb3;
 
   //Type:insert;Action:id,deviceType,deviceValue,clock,ip,port
   //sscanf(command,"%s:%s;%s:%s",garb1, garb2, garb3, tmp);
@@ -118,7 +118,6 @@ int main(int argc, char *argv[]) {
       puts("recv failed");
       break;
     } else {
-      printf("I GOT SOMETHING: %s\n");
       insert(server_reply);
     }
     memset(server_reply,0,2000);

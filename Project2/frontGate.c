@@ -62,6 +62,9 @@ int record = 0;//When door close even occurs 1
 int motion = 0;// Valid motion avalible
 int key = 0; //Valid Key avalible
 
+// Global pointer to the file
+FILE *f;
+
 //print the list of devices
 void print_list(){
   struct node* temp = list;
@@ -160,7 +163,8 @@ void register_node(struct device **client_device,char *action,int sock){
     b.socket = sock;
     b.registered = 1;
     (*client_device)->id = -1;
-    printf("REGISTERED: Backgate\n");
+    fprintf(f,"Registered: Backgate\n");
+    fflush(f);
   }
   else{
     (*client_device)->id = device_count;
@@ -186,7 +190,8 @@ void register_node(struct device **client_device,char *action,int sock){
       security = (*client_device);
     }
     insert(client_device);
-    printf("REGISTERED: %d\n",(*client_device)->id);
+    fprintf(f,"Registered: %d\n",(*client_device)->id);
+    fflush(f);
   }
 }
 
@@ -246,12 +251,14 @@ void multi_identify(char *msg){
       }
     }
     pthread_mutex_unlock(&mutex);
-    
-    printf("NEW CLOCK ");
-    for (a=0; a<g.clock_size;a++){
-      printf(",%d",g.clock[a]);
+
+    fprintf(f,"NEW CLOCK: ");
+    fprintf(f,"%d",g.clock[0]);
+    for (a=1; a<g.clock_size;a++){
+      fprintf(f,",%d",g.clock[a]);
     }
-    printf("\n");
+    fprintf(f,"\n");
+    fflush(f);
 
     //Log to backend
     time_t diff = difftime(time(NULL),0);
@@ -259,7 +266,7 @@ void multi_identify(char *msg){
     //puts("BEGIN TESTING");
     if (strcmp(senseType,"doorSensor")==0){
       //puts("FOUND DOOR");
-      snprintf(buffer,sizeof(buffer),"Type:insert;Action:%d,%s,%s,%d,%s,%d\0",id,senseType,value,diff,(*recentDoor).ip,(*recentDoor).port);
+      snprintf(buffer,sizeof(buffer),"Type:insert;Action:%d,%s,%s,%d,%s,%d",id,senseType,value,diff,(*recentDoor).ip,(*recentDoor).port);
       (*recentDoor).clock;
       //Update clock
       for (a =0; a< g.clock_size; a++){
@@ -272,7 +279,7 @@ void multi_identify(char *msg){
       if (newest){//New data is valid
 	(*recentDoor).value = value;
 	if (strcmp(value,"Close")==0){//Door close. record
-	  puts("RECORDING");
+	  //puts("RECORDING");
 	  record = 1;//flag to record recent values
 	  //check if recentmotion and recentkey are more recent
 	  for (a =0; a< g.clock_size; a++){
@@ -285,7 +292,7 @@ void multi_identify(char *msg){
 	  }
 	}
 	else{
-	  puts("STOP RECORDING");
+	  //puts("STOP RECORDING");
 	  record = 0;
 	  motion = 0;
 	  key = 0;
@@ -294,7 +301,7 @@ void multi_identify(char *msg){
     }
     else if (strcmp(senseType,"keySensor")==0){
       //puts("FOUND KEY");
-      snprintf(buffer,sizeof(buffer),"Type:insert;Action:%d,%s,%s,%d,%s,%d\0",id,senseType,value,diff,(*recentKey).ip,(*recentKey).port);
+      snprintf(buffer,sizeof(buffer),"Type:insert;Action:%d,%s,%s,%d,%s,%d",id,senseType,value,diff,(*recentKey).ip,(*recentKey).port);
       for (a =0; a< g.clock_size; a++){
 	if ((*recentKey).clock[a]<temp_clock[a]){
 	  newest = 1;
@@ -315,7 +322,7 @@ void multi_identify(char *msg){
     }
     else if(strcmp(senseType,"motionSensor")==0){
       //puts("FOUND MOTION");
-      snprintf(buffer,sizeof(buffer),"Type:insert;Action:%d,%s,%s,%d,%s,%d\0",id,senseType,value,diff,(*recentMotion).ip,(*recentMotion).port);
+      snprintf(buffer,sizeof(buffer),"Type:insert;Action:%d,%s,%s,%d,%s,%d",id,senseType,value,diff,(*recentMotion).ip,(*recentMotion).port);
       for (a =0; a< g.clock_size; a++){
 	if ((*recentMotion).clock[a]<temp_clock[a]){
 	  newest = 1;
@@ -344,37 +351,49 @@ void multi_identify(char *msg){
       if (strcmp(value,"on")==0){
 	free((*security).value);
 	(*security).value = strdup("on");
-	puts("SYSTEM IS ON!!!!");
+	fprintf(f,"System is AWAY\n");
+	fflush(f);
       }
       else{
 	free((*security).value);
 	(*security).value = strdup("off");
-	puts("SYSTEM IS OFF");
+	fprintf(f,"System is HOME\n");
+	fflush(f);
       }
-      snprintf(buffer,sizeof(buffer),"Type:insert;Action:System is %s\0",(*security).value);
+      snprintf(buffer,sizeof(buffer),"Type:insert;Action:System is %s",(*security).value);
     }
 
     //Increment Clock and send
-    //pthread_mutex_lock(&mutex);
+    pthread_mutex_lock(&mutex);
     g.clock[g.id]++;
-    //pthread_mutex_unlock(&mutex);
+    pthread_mutex_unlock(&mutex);
+
+    snprintf(tempbuf,sizeof(tempbuf),"-Clock:%d",g.clock[0]);
+    strcat(buffer,tempbuf);
+    for(a=1; a< g.clock_size;a++){
+      snprintf(tempbuf,sizeof(tempbuf),",%d",g.clock[a]);
+      strcat(buffer,tempbuf);
+    }
+    strcat(buffer,"\0");
 	   
     if (send(b.socket,buffer,sizeof(buffer),0) < 0){
       printf("Error Sending buffer\n");
     } else {
-        printf("IM SENDING TO BACKEND %s\n", buffer);
+      fprintf(f,"Sending to backend %s\n", buffer);
+      fflush(f);
     }
     
     //0 out buffer
     memset(buffer,0,strlen(buffer));
+    memset(tempbuf,0,strlen(tempbuf));
     
     if (record&&key&&motion){//All criteria met. Determine what to do with deivce
-      puts("CHECKING SYSTEM");
       //Turn on system if off
       if (strcmp("True",(*recentKey).value)==0){
 	if (strcmp("on",(*security).value)==0){
 	  //Send turn off
-	  printf("User In. Turn off\n");
+	  fprintf(f,"User In. Turn off\n");
+	  fflush(f);
 	  //Increment Clock and send
 	  pthread_mutex_lock(&mutex);
 	  g.clock[g.id]++;
@@ -387,12 +406,24 @@ void multi_identify(char *msg){
 	  }
 	  
 	  send((*security).socket,buffer,strlen(buffer)+1,0);
+
+	  //log to backend
+	  //0 out buffer
+	  memset(buffer,0,strlen(buffer));
+	  //Increment Clock and send
+	  pthread_mutex_lock(&mutex);
+	  g.clock[g.id]++;
+	  pthread_mutex_unlock(&mutex);
+
+	  snprintf(buffer,sizeof(buffer),"Type:insert;Action:User has returned!\0");	  
+	  send(b.socket,buffer,strlen(buffer)+1,0);
 	}
       }
       else if (strcmp("True",(*recentMotion).value)==0){//Intruder!
 	if (strcmp("on",(*security).value)==0){
-	  puts("INTRUDER!!!!!!!!!!!!!!!!");
-
+	  fprintf(f,"Intruder Alert\n");
+	  fflush(f);
+	  
 	  //Increment Clock and send
 	  pthread_mutex_lock(&mutex);
 	  g.clock[g.id]++;
@@ -405,7 +436,8 @@ void multi_identify(char *msg){
       else{//User left
 	if (strcmp("off",(*security).value)==0){
 	  //Send turn on
-	  printf("User left. Turn on\n");
+	  fprintf(f,"User left. Turn on\n");
+	  fflush(f);
 	  //Increment Clock and send
 	  pthread_mutex_lock(&mutex);
 	  g.clock[g.id]++;
@@ -418,6 +450,17 @@ void multi_identify(char *msg){
 	  }
 	    
 	  send((*security).socket,buffer,strlen(buffer)+1,0);
+
+	  //log to backend
+	  //0 out buffer
+	  memset(buffer,0,strlen(buffer));
+	  //Increment Clock and send
+	  pthread_mutex_lock(&mutex);
+	  g.clock[g.id]++;
+	  pthread_mutex_unlock(&mutex);
+
+	  snprintf(buffer,sizeof(buffer),"Type:insert;Action:User has left!\0");	  
+	  send(b.socket,buffer,strlen(buffer)+1,0);
 	}
       }
       record = 0;
@@ -425,6 +468,29 @@ void multi_identify(char *msg){
       key = 0; 
     }
   }
+}
+
+//Poll function
+void poll(){
+  char buffer[1024];
+  char tempbuf[1024];
+  int a;
+  //Increment Clock and send
+  pthread_mutex_lock(&mutex);
+  g.clock[g.id]++;
+  pthread_mutex_unlock(&mutex);
+
+  fprintf(f,"Sending poll\n");
+  fflush(f);
+  
+  snprintf(buffer,sizeof(buffer),"Type:currState;Action:");
+  snprintf(tempbuf,sizeof(tempbuf),"%d",g.clock[0]);
+  strcat(buffer,tempbuf);
+  for(a=1; a< g.clock_size;a++){
+    snprintf(tempbuf,sizeof(tempbuf),",%d",g.clock[a]);
+    strcat(buffer,tempbuf);
+  }
+  send((*recentDoor).socket,buffer,strlen(buffer),0);
 }
 
 //Decodes the message from the client UNICAST
@@ -447,6 +513,8 @@ void identify(struct device **client_device,char *msg,int socket){
   if (strcmp(type,"register")==0){
     register_node(client_device,action,socket);
     if (device_count == MULTI_DEVICES && b.registered){//All devices registered
+      fprintf(f,"All devices registered\n");
+      fflush(f);
       sendClears();
     }
     //send register to backend
@@ -470,7 +538,8 @@ void *connection_handler(void *socket_desc){
   while( (read_size = recv(client_sock , client_message , 2000 , 0)) > 0 )
     {
       //Send the message back to client
-      //printf("Recieved message: %s\n",client_message);
+      fprintf(f,"Recieved: %s\n",client_message);
+      fflush(f);
       identify(&client_device,client_message,client_sock);
     }
      
@@ -540,7 +609,8 @@ void* multicast_listener(){
     } else if (cnt == 0) {
       break;
     }
-    printf("RECIVED: %s\n\0", message);
+    fprintf(f,"Recieved: %s\n", message);
+    fflush(f);
     multi_identify(message);
   }
 }
@@ -551,15 +621,14 @@ int main(int argc , char *argv[])
   readConfig(argv[1]);
 
   //create and clear the file
-  FILE *f = fopen(argv[2],"w");
+  f = fopen(argv[2],"w");
   if (f==NULL){
     printf("Error opening file\n");
     exit(1);
   }
-
-  fclose(f);
   
   //Start Listening on Multichannel
+  
   pthread_t multi;
   g.clock_size = MULTI_DEVICES+1;
   g.clock = malloc((g.clock_size)*sizeof(int));
