@@ -211,7 +211,6 @@ void *iterate(){//add addr stuff
 
 	sendto(m.sock,buffer, strlen(buffer)+1, 0,(struct sockaddr*)&m.addr,m.addrlen);
 
-	
       }
       temp = temp->next;
     }
@@ -227,7 +226,7 @@ void* multicast_listener(){
   struct sockaddr_in addr;
   int addrlen, sock, cnt;
   struct ip_mreq mreq;
-  char message[50];
+  char message[1024];
   int reuse = 1;
   //int loop = 0;
 
@@ -260,11 +259,6 @@ void* multicast_listener(){
     perror("setsockopt mreq");
     exit(1);
   }
-
-  /*if ( setsockopt(sock, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop))){
-    perror("setsockopt loop");
-    exit(1);
-  }*/
   
   //reocrd data
   m.addr = addr;
@@ -338,7 +332,6 @@ void identify(char* command){
 	}
       }
       pthread_mutex_unlock(&mutex);
-
      
       printf("NEW CLOCK ");
       for (a=0; a<s.clock_size;a++){

@@ -11,7 +11,7 @@
 
 #define GROUP_PORT 6000
 #define GROUP_IP "239.0.0.1"
-#define MULTI_DEVICES 3 //Exculding Gateway
+#define MULTI_DEVICES 4 //Exculding Gateway
 //5th device is gateway
 //<0,1,2,3,4>
 
@@ -153,14 +153,16 @@ void register_node(struct device **client_device,char *action,int sock){
   char* ip = strtok(NULL,"-");
   char* port = strtok(NULL,"-");
 
+  (*client_device)=malloc(sizeof(struct device)); 
   if (strcmp(type,"backGate")==0){
     b.ip = strdup(ip);
     b.port = atoi(port);
     b.socket = sock;
     b.registered = 1;
+    (*client_device)->id = -1;
+    printf("REGISTERED: Backgate\n");
   }
   else{
-    (*client_device)=malloc(sizeof(struct device)); 
     (*client_device)->id = device_count;
     device_count++;
     (*client_device)->type = strdup(type);
@@ -184,8 +186,8 @@ void register_node(struct device **client_device,char *action,int sock){
       security = (*client_device);
     }
     insert(client_device);
+    printf("REGISTERED: %d\n",(*client_device)->id);
   }
-  printf("REGISTERED: %d\n",(*client_device)->id);
 }
 
 //Send a clear to each device excluding backGate
@@ -210,6 +212,7 @@ void multi_identify(char *msg){
   char* senseType;
   int id;
   char buffer[1024];
+  char tempbuf[1024];
   struct node* temp = list;
   strtok(msg,":");
   type = strtok(NULL,":");
@@ -222,8 +225,8 @@ void multi_identify(char *msg){
     int* temp_clock[g.clock_size];
     int a;
     //Parse
-    id = atoi(strtok(action,"-"));
-    (strtok(NULL,"-"));//Parse
+    atoi(strtok(action,"-"));
+    id = atoi(strtok(NULL,"-"));//ID
     value = (strtok(NULL,"-"));//Value
     senseType = (strtok(NULL,"-"));//Type
     
@@ -321,8 +324,7 @@ void multi_identify(char *msg){
       }
       if (newest){
 	(*recentMotion).value = value;
-      }
-      
+      } 
       //check if the event happened after
       if (record){
 	for (a =0; a< g.clock_size; a++){
@@ -332,45 +334,94 @@ void multi_identify(char *msg){
 	}
       }
     }
+    else if (strcmp(senseType,"device")==0){
+      puts("FOUND DEVICE");
+      for (a =0; a< g.clock_size; a++){
+	if ((*security).clock[a]<temp_clock[a]){
+	  (*security).clock[a] = temp_clock[a];
+	}
+      }
+      if (strcmp(action,"on")==0){
+	free((*security).value);
+	(*security).value = strdup("on");
+	puts("SYSTEM IS ON!!!!");
+      }
+      else{
+	free((*security).value);
+	(*security).value = strdup("off");
+	puts("SYSTEM IS OFF");
+      }   
+      snprintf(buffer,sizeof(buffer),"Type:insert;Action:System is %s\0",(*security).value);
+    }
+    
     //send new value to backend
     puts("SENDING TO BACKEND");
+
+    //Increment Clock and send
+    pthread_mutex_lock(&mutex);
+    g.clock[g.id]++;
+    pthread_mutex_unlock(&mutex);
+	   
     send(b.socket,buffer,strlen(buffer)+1,0);
 
     //0 out buffer
     memset(buffer,0,strlen(buffer));
     
-    if (record&&key){//All criteria met. Determine what to do with deivce
-       puts("CHECKING SYSTEM");
-      //Short circut. Turn on system if off
+    if (record&&key&&motion){//All criteria met. Determine what to do with deivce
+      puts("CHECKING SYSTEM");
+      //Turn on system if off
       if (strcmp("True",(*recentKey).value)==0){
 	if (strcmp("on",(*security).value)==0){
 	  //Send turn off
 	  printf("User In. Turn off\n");
-	  snprintf(buffer,sizeof(buffer),"Type:switch;Action:off\0");
+	  //Increment Clock and send
+	  pthread_mutex_lock(&mutex);
+	  g.clock[g.id]++;
+	  pthread_mutex_unlock(&mutex);
+
+	  snprintf(buffer,sizeof(buffer),"Type:switch;Action:off-%d\0",g.clock[0]);
+	  for(a=1; a< g.clock_size;a++){
+	    snprintf(tempbuf,sizeof(tempbuf),",%d",g.clock[a]);
+	    strcat(buffer,tempbuf);
+	  }
+	  
 	  send((*security).socket,buffer,strlen(buffer)+1,0);
 	}
       }
-      else if (motion){//Check the motion or wait
-	if (strcmp("True",(*recentMotion).value)==0){//Intruder!
-	  if (strcmp("on",(*security).value)==0){
-	    puts("INTRUDER!!!!!!!!!!!!!!!!");
-	    snprintf(buffer,sizeof(buffer),"Type:insert;Action:Intruder Alert!\0");
-	    send(b.socket,buffer,strlen(buffer)+1,0);
-	  }
+      else if (strcmp("True",(*recentMotion).value)==0){//Intruder!
+	if (strcmp("on",(*security).value)==0){
+	  puts("INTRUDER!!!!!!!!!!!!!!!!");
+
+	  //Increment Clock and send
+	  pthread_mutex_lock(&mutex);
+	  g.clock[g.id]++;
+	  pthread_mutex_unlock(&mutex);
+
+	  snprintf(buffer,sizeof(buffer),"Type:insert;Action:Intruder Alert!\0");
+	  send(b.socket,buffer,strlen(buffer)+1,0);
 	}
-	else{//User left
-	  puts("CRASH TURN IT OFF");
-	  if (strcmp("off",(*security).value)==0){
-	    //Send turn on
-	    printf("User left. Turn on\n");
-	    snprintf(buffer,sizeof(buffer),"Type:switch;Action:On\0");
-	    send((*security).socket,buffer,strlen(buffer)+1,0);
-      	  }
-	}
-	record = 0;
-	motion = 0;
-	key = 0;
       }
+      else{//User left
+	if (strcmp("off",(*security).value)==0){
+	  //Send turn on
+	  printf("User left. Turn on\n");
+	  //Increment Clock and send
+	  pthread_mutex_lock(&mutex);
+	  g.clock[g.id]++;
+	  pthread_mutex_unlock(&mutex);
+	    
+	  snprintf(buffer,sizeof(buffer),"Type:switch;Action:on-%d\0",g.clock[0]);
+	  for(a=1; a< g.clock_size;a++){
+	    snprintf(tempbuf,sizeof(tempbuf),",%d",g.clock[a]);
+	    strcat(buffer,tempbuf);
+	  }
+	    
+	  send((*security).socket,buffer,strlen(buffer)+1,0);
+	}
+      }
+      record = 0;
+      motion = 0;
+      key = 0; 
     }
   }
 }
@@ -398,22 +449,8 @@ void identify(struct device **client_device,char *msg,int socket){
       sendClears();
     }
     //send register to backend
-    snprintf(buffer,sizeof(buffer),"Type:insert;Action:Registered:%d:%s",(*client_device)->id,(*client_device)->type);
-    send(b.socket,buffer,strlen(buffer)+1,0);
-  }
-  else if (strcmp(type,"currState")==0){
-    if (strcmp(action,"on")==0){
-      free((*client_device)->value);
-      (*client_device)->value = strdup("on");
-      puts("SYSTEM IS ON!!!!");
-      snprintf(buffer,sizeof(buffer),"Type:insert;Action:System is on");
-      send(b.socket,buffer,strlen(buffer)+1,0);
-    }
-    else{
-      free((*client_device)->value);
-      (*client_device)->value = strdup("off");
-      puts("SYSTEM IS OFF");
-      snprintf(buffer,sizeof(buffer),"Type:insert;Action:System is off");
+    if (b.registered && (*client_device)->id !=-1){
+      snprintf(buffer,sizeof(buffer),"Type:insert;Action:Registered:%d:%s\0",(*client_device)->id,(*client_device)->type);
       send(b.socket,buffer,strlen(buffer)+1,0);
     }
   }
