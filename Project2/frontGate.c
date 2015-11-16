@@ -256,9 +256,9 @@ void multi_identify(char *msg){
     //Log to backend
     time_t diff = difftime(time(NULL),0);
     int newest = 0;//1 if data is newer
-    puts("BEGIN TESTING");
+    //puts("BEGIN TESTING");
     if (strcmp(senseType,"doorSensor")==0){
-      puts("FOUND DOOR");
+      //puts("FOUND DOOR");
       snprintf(buffer,sizeof(buffer),"Type:insert;Action:%d,%s,%s,%d,%s,%d\0",id,senseType,value,diff,(*recentDoor).ip,(*recentDoor).port);
       (*recentDoor).clock;
       //Update clock
@@ -293,7 +293,7 @@ void multi_identify(char *msg){
       }
     }
     else if (strcmp(senseType,"keySensor")==0){
-      puts("FOUND KEY");
+      //puts("FOUND KEY");
       snprintf(buffer,sizeof(buffer),"Type:insert;Action:%d,%s,%s,%d,%s,%d\0",id,senseType,value,diff,(*recentKey).ip,(*recentKey).port);
       for (a =0; a< g.clock_size; a++){
 	if ((*recentKey).clock[a]<temp_clock[a]){
@@ -314,7 +314,7 @@ void multi_identify(char *msg){
       }
     }
     else if(strcmp(senseType,"motionSensor")==0){
-      puts("FOUND MOTION");
+      //puts("FOUND MOTION");
       snprintf(buffer,sizeof(buffer),"Type:insert;Action:%d,%s,%s,%d,%s,%d\0",id,senseType,value,diff,(*recentMotion).ip,(*recentMotion).port);
       for (a =0; a< g.clock_size; a++){
 	if ((*recentMotion).clock[a]<temp_clock[a]){
@@ -335,13 +335,13 @@ void multi_identify(char *msg){
       }
     }
     else if (strcmp(senseType,"device")==0){
-      puts("FOUND DEVICE");
+      //puts("FOUND DEVICE");
       for (a =0; a< g.clock_size; a++){
 	if ((*security).clock[a]<temp_clock[a]){
 	  (*security).clock[a] = temp_clock[a];
 	}
       }
-      if (strcmp(action,"on")==0){
+      if (strcmp(value,"on")==0){
 	free((*security).value);
 	(*security).value = strdup("on");
 	puts("SYSTEM IS ON!!!!");
@@ -350,20 +350,21 @@ void multi_identify(char *msg){
 	free((*security).value);
 	(*security).value = strdup("off");
 	puts("SYSTEM IS OFF");
-      }   
+      }
       snprintf(buffer,sizeof(buffer),"Type:insert;Action:System is %s\0",(*security).value);
     }
-    
-    //send new value to backend
-    puts("SENDING TO BACKEND");
 
     //Increment Clock and send
-    pthread_mutex_lock(&mutex);
+    //pthread_mutex_lock(&mutex);
     g.clock[g.id]++;
-    pthread_mutex_unlock(&mutex);
+    //pthread_mutex_unlock(&mutex);
 	   
-    send(b.socket,buffer,strlen(buffer)+1,0);
-
+    if (send(b.socket,buffer,sizeof(buffer),0) < 0){
+      printf("Error Sending buffer\n");
+    } else {
+        printf("IM SENDING TO BACKEND %s\n", buffer);
+    }
+    
     //0 out buffer
     memset(buffer,0,strlen(buffer));
     

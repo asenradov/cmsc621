@@ -8,6 +8,9 @@
 #include<stdlib.h>
 #include <pthread.h>
 
+// Global pointer to the file
+FILE *f;
+
 typedef struct {
   int port;
   char* ip;
@@ -55,25 +58,18 @@ void readConfig(char* file) {
 }
 
 //insert info into back end file
-void insert(char* command, char* fp) {
-  //printf("msg: %s\n",command);
+void insert(char* command) {
+  printf("msg: %s\n",command);
   char *tmp;
   char *garb1, *garb2, *garb3;
 
-  FILE *f = fopen(fp, "a");
-  if (f == NULL) {
-    printf("Error opening file\n");
-    exit(1);
-  }
-
   //Type:insert;Action:id,deviceType,deviceValue,clock,ip,port
-  sscanf(command,"%s:%s;%s:%s",garb1, garb2, garb3, tmp);
+  //sscanf(command,"%s:%s;%s:%s",garb1, garb2, garb3, tmp);
 
   //printf("Insert: %s\n", tmp);
-  fprintf(f, tmp);
+  fprintf(f, command);
   fprintf(f, "\n");
-
-  fclose(f);
+  fflush(f);
 }
 
 int main(int argc, char *argv[]) {
@@ -81,15 +77,8 @@ int main(int argc, char *argv[]) {
 
   readConfig(argv[1]);
   
-  FILE *f = fopen(argv[2], "w");
-  if (f == NULL) {
-    printf("Error opening file\n");
-    exit(1);
-  }
-  fclose(f);
-  
   struct sockaddr_in server;
-  char message[1000], server_reply[2000];
+  char message[1000], server_reply[1024];
 
   //Create socket
   sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -116,15 +105,23 @@ int main(int argc, char *argv[]) {
 	   "backGate", back.ip, back.port);
   send(sock, buffer, strlen(buffer) + 1, 0);
 
+  // Open the file for writing
+  f = fopen(argv[2], "w+");
+  if (f == NULL) {
+    printf("Error opening file\n");
+    exit(1);
+  }
+  
   //keep communicating with server
-
   while (1) {
-    if (recv(sock, server_reply, 2000, 0) < 0) {
+    if (recv(sock, server_reply, sizeof(server_reply), 0) < 0) {
       puts("recv failed");
       break;
     } else {
-      insert(server_reply, argv[2]);
+      printf("I GOT SOMETHING: %s\n");
+      insert(server_reply);
     }
+    memset(server_reply,0,2000);
   }
 
   close(sock);
