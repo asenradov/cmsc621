@@ -2,7 +2,12 @@ I've got special permission to change the config file.
 The config files for the 3 sensors will be
 "keySensor,motionSensor and doorSensor" instead of just sensor.
 
-Message Formats. This is more complicated.
+Assumptions
+-A door open will be followed by a door close.
+-If the first time in the input for all sensors is 0 then the messages could be recieved in any order.
+-The backgate will log registering of devices only if the registering happened after the backgate is run.
+
+Message Formats.
 Messages will be past between the multichannel and the uni channel
 BackGate is not part of the multichannel
 

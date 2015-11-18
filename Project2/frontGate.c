@@ -218,6 +218,7 @@ void multi_identify(char *msg){
   int id;
   char buffer[1024];
   char tempbuf[1024];
+  char testbuff[1024];
   struct node* temp = list;
   strtok(msg,":");
   type = strtok(NULL,":");
@@ -252,7 +253,7 @@ void multi_identify(char *msg){
     }
     pthread_mutex_unlock(&mutex);
 
-    fprintf(f,"NEW CLOCK: ");
+    fprintf(f,"New clock: ");
     fprintf(f,"%d",g.clock[0]);
     for (a=1; a<g.clock_size;a++){
       fprintf(f,",%d",g.clock[a]);
@@ -368,18 +369,18 @@ void multi_identify(char *msg){
     g.clock[g.id]++;
     pthread_mutex_unlock(&mutex);
 
-    snprintf(tempbuf,sizeof(tempbuf),"-Clock:%d",g.clock[0]);
+    snprintf(tempbuf,sizeof(tempbuf),"-Clock-%d",g.clock[0]);
     strcat(buffer,tempbuf);
     for(a=1; a< g.clock_size;a++){
       snprintf(tempbuf,sizeof(tempbuf),",%d",g.clock[a]);
       strcat(buffer,tempbuf);
     }
-    strcat(buffer,"\0");
+    strcat(buffer,"\n");
 	   
     if (send(b.socket,buffer,sizeof(buffer),0) < 0){
       printf("Error Sending buffer\n");
     } else {
-      fprintf(f,"Sending to backend %s\n", buffer);
+      fprintf(f,"Sending to backend %s", buffer);
       fflush(f);
     }
     
@@ -404,19 +405,25 @@ void multi_identify(char *msg){
 	    snprintf(tempbuf,sizeof(tempbuf),",%d",g.clock[a]);
 	    strcat(buffer,tempbuf);
 	  }
+ 	  if(send((*security).socket,buffer,strlen(buffer)+1,0)< 0){
+              printf("Error Sending buffer\n");
+          }
 	  
-	  send((*security).socket,buffer,strlen(buffer)+1,0);
-
 	  //log to backend
 	  //0 out buffer
-	  memset(buffer,0,strlen(buffer));
+	  memset(buffer,0,strlen(buffer)+1);
 	  //Increment Clock and send
 	  pthread_mutex_lock(&mutex);
 	  g.clock[g.id]++;
 	  pthread_mutex_unlock(&mutex);
 
-	  snprintf(buffer,sizeof(buffer),"Type:insert;Action:User has returned!\0");	  
-	  send(b.socket,buffer,strlen(buffer)+1,0);
+	  snprintf(testbuff,sizeof(testbuff),"Type:insert;Action:User has returned!\n");	  
+	  if(send(b.socket,testbuff,strlen(testbuff),0)< 0){
+              printf("Error Sending buffer\n");
+          } else {
+              fprintf(f,"Sending backend: %s", testbuff);
+              fflush(f);
+          }
 	}
       }
       else if (strcmp("True",(*recentMotion).value)==0){//Intruder!
@@ -429,8 +436,13 @@ void multi_identify(char *msg){
 	  g.clock[g.id]++;
 	  pthread_mutex_unlock(&mutex);
 
-	  snprintf(buffer,sizeof(buffer),"Type:insert;Action:Intruder Alert!\0");
-	  send(b.socket,buffer,strlen(buffer)+1,0);
+	  snprintf(testbuff,sizeof(testbuff),"Type:insert;Action:Intruder Alert!\n");
+	  if(send(b.socket,testbuff,strlen(testbuff),0)< 0){
+              printf("Error Sending buffer\n");
+          } else {
+              fprintf(f,"Sending backend:  %s", testbuff);
+              fflush(f);
+          }
 	}
       }
       else{//User left
@@ -448,19 +460,23 @@ void multi_identify(char *msg){
 	    snprintf(tempbuf,sizeof(tempbuf),",%d",g.clock[a]);
 	    strcat(buffer,tempbuf);
 	  }
-	    
 	  send((*security).socket,buffer,strlen(buffer)+1,0);
 
 	  //log to backend
 	  //0 out buffer
-	  memset(buffer,0,strlen(buffer));
+	  memset(buffer,0,strlen(buffer)+1);
 	  //Increment Clock and send
 	  pthread_mutex_lock(&mutex);
 	  g.clock[g.id]++;
 	  pthread_mutex_unlock(&mutex);
 
-	  snprintf(buffer,sizeof(buffer),"Type:insert;Action:User has left!\0");	  
-	  send(b.socket,buffer,strlen(buffer)+1,0);
+	  snprintf(testbuff,sizeof(testbuff),"Type:insert;Action:User has left!\n");	  
+	  if(send(b.socket,testbuff,strlen(testbuff),0)< 0){
+              printf("Error Sending buffer\n");
+          } else {
+              fprintf(f,"Sending to backend %s", testbuff);
+              fflush(f);
+          }
 	}
       }
       record = 0;
@@ -519,8 +535,8 @@ void identify(struct device **client_device,char *msg,int socket){
     }
     //send register to backend
     if (b.registered && (*client_device)->id !=-1){
-      snprintf(buffer,sizeof(buffer),"Type:insert;Action:Registered:%d:%s\0",(*client_device)->id,(*client_device)->type);
-      send(b.socket,buffer,strlen(buffer)+1,0);
+      snprintf(buffer,sizeof(buffer),"Type:insert;Action:Registered-%d-%s\n",(*client_device)->id,(*client_device)->type);
+      send(b.socket,buffer,strlen(buffer),0);
     }
   }
 }
@@ -567,7 +583,7 @@ void* multicast_listener(){
   struct sockaddr_in addr;
   int addrlen, sock, cnt;
   struct ip_mreq mreq;
-  char message[100];
+  char message[1024];
   int reuse = 1;
 
   /* set up socket */

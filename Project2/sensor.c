@@ -282,7 +282,6 @@ void* multicast_listener(){
       break;
     }
     
-    fprintf(f,"Recieved: %s\n", message);
     fflush(f);
     identify(message);
   }
@@ -292,11 +291,13 @@ void* multicast_listener(){
 void identify(char* command){
   //printf("msg: %s\n",command);
   char * type;
+  char preparse[1024];
   char * action;
   char buffer[1024];
   char tempbuf[1024];
   int* temp_clock[s.clock_size];
   int a;
+  strcpy(preparse,command);
   strtok(command,":");
   type = strtok(NULL,":");
   action = strtok(NULL,":"); 
@@ -310,6 +311,8 @@ void identify(char* command){
 
   //Create vector
   if (strcmp(type,"clear")==0){
+    fprintf(f,"Recieved: %s\n", preparse);
+    fflush(f);
     s.id = atoi(strtok(action,"-"));
     s.clock_size = atoi(strtok(NULL,"-"));
     s.clock = malloc(s.clock_size*sizeof(int));
@@ -325,7 +328,8 @@ void identify(char* command){
     //Parse
     (strtok(action,"-"));
     if(s.id!=atoi(strtok(NULL,"-"))){//Discard Loopback
-            
+      fprintf(f,"Recieved: %s\n", preparse);
+      fflush(f);
       temp_clock[0] = (atoi(strtok(action,",")));
       for (a = 1; a<s.clock_size; a++){
 	temp_clock[a] = (atoi(strtok(NULL,",")));
@@ -343,7 +347,7 @@ void identify(char* command){
       }
       pthread_mutex_unlock(&mutex);
 
-      fprintf(f,"NEW CLOCK: ");
+      fprintf(f,"New clock: ");
       fprintf(f,"%d",s.clock[0]);
       for (a=1; a<s.clock_size;a++){
 	fprintf(f,",%d",s.clock[a]);
@@ -351,12 +355,10 @@ void identify(char* command){
       fprintf(f,"\n");
       fflush(f);
     }
-    else{
-      fprintf(f,"Discarding loopback\n");
-      fflush(f);
-    }
   }
   else if(strcmp(type,"currState")==0){//Been polled. Send value
+    fprintf(f,"Recieved: %s\n", preparse);
+    fflush(f);
     temp_clock[0] = (atoi(strtok(action,",")));
     for (a = 1; a<s.clock_size; a++){
       temp_clock[a] = (atoi(strtok(NULL,",")));
@@ -374,7 +376,7 @@ void identify(char* command){
     }
     pthread_mutex_unlock(&mutex);
     
-    fprintf(f,"NEW CLOCK: ");
+    fprintf(f,"New clock: ");
     fprintf(f,"%d",s.clock[0]);
     for (a=1; a<s.clock_size;a++){
       fprintf(f,",%d",s.clock[a]);
@@ -466,7 +468,7 @@ int main(int argc , char *argv[])
 
   while(1)
     {
-      if( recv(sock , server_reply , 2000 , 0) < 0)
+      if( recv(sock , server_reply , sizeof(server_reply) , 0) < 0)
         {
 	  puts("recv failed");
 	  break;

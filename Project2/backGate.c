@@ -58,18 +58,24 @@ void readConfig(char* file) {
 }
 
 //insert info into back end file
-void insert(char* command) {
-  //printf("msg: %s\n",command);
-  //char *tmp;
-  // char *garb1, *garb2, *garb3;
+void identify(char* command) {
+  char * type;
+  char * action;
 
-  //Type:insert;Action:id,deviceType,deviceValue,clock,ip,port
-  //sscanf(command,"%s:%s;%s:%s",garb1, garb2, garb3, tmp);
+  printf("msg: %s",command);
 
-  //printf("Insert: %s\n", tmp);
-  fprintf(f, command);
-  fprintf(f, "\n");
-  fflush(f);
+  strtok(command,":");
+  type = strtok(NULL,":");
+  action = strtok(NULL,":"); 
+  type = strtok(type,";");
+
+  //printf("msg: %s\n",action);
+  
+  if (type!=NULL && strcmp(type,"insert")==0){
+    fprintf(f, action);
+    //fprintf(f, "\n");
+    fflush(f);
+  }
 }
 
 int main(int argc, char *argv[]) {
@@ -118,9 +124,9 @@ int main(int argc, char *argv[]) {
       puts("recv failed");
       break;
     } else {
-      insert(server_reply);
+      identify(server_reply);
     }
-    memset(server_reply,0,2000);
+    memset(server_reply,0,1024);
   }
 
   close(sock);
