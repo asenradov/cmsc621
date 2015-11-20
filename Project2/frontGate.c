@@ -418,7 +418,7 @@ void multi_identify(char *msg){
 	  pthread_mutex_unlock(&mutex);
 
 	  snprintf(testbuff,sizeof(testbuff),"Type:insert;Action:User has returned!\n");	  
-	  if(send(b.socket,testbuff,strlen(testbuff),0)< 0){
+	  if(send(b.socket,testbuff,sizeof(testbuff),0)< 0){
               printf("Error Sending buffer\n");
           } else {
               fprintf(f,"Sending backend: %s", testbuff);
@@ -437,7 +437,7 @@ void multi_identify(char *msg){
 	  pthread_mutex_unlock(&mutex);
 
 	  snprintf(testbuff,sizeof(testbuff),"Type:insert;Action:Intruder Alert!\n");
-	  if(send(b.socket,testbuff,strlen(testbuff),0)< 0){
+	  if(send(b.socket,testbuff,sizeof(testbuff),0)< 0){
               printf("Error Sending buffer\n");
           } else {
               fprintf(f,"Sending backend:  %s", testbuff);
@@ -471,7 +471,7 @@ void multi_identify(char *msg){
 	  pthread_mutex_unlock(&mutex);
 
 	  snprintf(testbuff,sizeof(testbuff),"Type:insert;Action:User has left!\n");	  
-	  if(send(b.socket,testbuff,strlen(testbuff),0)< 0){
+	  if(send(b.socket,testbuff,sizeof(testbuff),0)< 0){
               printf("Error Sending buffer\n");
           } else {
               fprintf(f,"Sending to backend %s", testbuff);

@@ -62,7 +62,7 @@ void identify(char* command) {
   char * type;
   char * action;
 
-  printf("msg: %s",command);
+  //printf("msg: %s",command);
 
   strtok(command,":");
   type = strtok(NULL,":");

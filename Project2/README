@@ -7,6 +7,22 @@ Assumptions
 -If the first time in the input for all sensors is 0 then the messages could be recieved in any order.
 -The backgate will log registering of devices only if the registering happened after the backgate is run.
 
+The algorithm that the program uses differs from the example algorithm provided in the pdf and was approved by Sandeep. The close signals the next motion and key to be recorded. Thus the outputs would differ as such:
+
+My algorithm:
+ Door Close
+ motion = false
+ key = false
+ -User left
+ 
+Descriptor:
+ motion = true
+ key = true
+ door open
+ motion = false
+ key =false
+ -User left
+
 Message Formats.
 Messages will be past between the multichannel and the uni channel
 BackGate is not part of the multichannel
