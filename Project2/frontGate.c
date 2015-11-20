@@ -695,7 +695,6 @@ int main(int argc , char *argv[])
     pthread_t sniffer_thread;
     new_sock = malloc(1);
     *new_sock = client_sock;
-
     if (pthread_create(&sniffer_thread,NULL,connection_handler,(void*)new_sock) < 0){
       perror("Could not create new thread");
       return 1;
