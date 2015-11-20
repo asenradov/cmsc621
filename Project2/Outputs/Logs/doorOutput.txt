@@ -1,0 +1,41 @@
+Recieved: Type:clear;Action:3-5
+Sending at time:0 Msg: Type:currValue;Action:0,0,0,1,0-3-Open-doorSensor
+Recieved: Type:currValue;Action:0,0,2,1,0-2-True-motionSensor
+New clock: 0,0,2,2,0
+Recieved: Type:currValue;Action:0,3,2,1,0-1-True-keySensor
+New clock: 0,3,2,3,0
+Recieved: Type:currValue;Action:0,3,4,1,0-2-True-motionSensor
+New clock: 0,3,4,4,0
+Recieved: Type:currValue;Action:0,5,4,1,0-1-True-keySensor
+New clock: 0,5,4,5,0
+Recieved: Type:currValue;Action:0,5,6,1,0-2-False-motionSensor
+New clock: 0,5,6,6,0
+Recieved: Type:currValue;Action:0,7,6,1,0-1-False-keySensor
+New clock: 0,7,6,7,0
+Sending at time:10 Msg: Type:currValue;Action:0,7,6,8,0-3-Close-doorSensor
+Recieved: Type:currValue;Action:0,7,9,8,0-2-False-motionSensor
+New clock: 0,7,9,9,0
+Recieved: Type:currValue;Action:0,10,9,8,0-1-False-keySensor
+New clock: 0,10,9,10,0
+Recieved: Type:currValue;Action:12,10,9,8,21-0-on-device
+New clock: 12,10,9,11,21
+Recieved: Type:currValue;Action:12,10,12,8,21-2-False-motionSensor
+New clock: 12,10,12,12,21
+Recieved: Type:currValue;Action:12,12,9,8,21-1-False-keySensor
+New clock: 12,12,12,13,21
+Sending at time:20 Msg: Type:currValue;Action:12,12,12,14,21-3-Open-doorSensor
+Recieved: Type:currValue;Action:12,15,12,14,21-1-True-keySensor
+New clock: 12,15,12,15,21
+Recieved: Type:currValue;Action:12,12,15,14,21-2-True-motionSensor
+New clock: 12,15,15,16,21
+Recieved: Type:currValue;Action:12,17,15,14,21-1-True-keySensor
+New clock: 12,17,15,18,21
+Sending at time:30 Msg: Type:currValue;Action:12,15,15,17,21-3-Close-doorSensor
+Recieved: Type:currValue;Action:12,15,17,14,21-2-True-motionSensor
+New clock: 12,17,17,19,21
+Recieved: Type:currValue;Action:22,17,17,17,41-0-off-device
+New clock: 22,17,17,20,41
+Sending at time:35 Msg: Type:currValue;Action:22,17,17,21,41-3-Open-doorSensor
+Recieved: Type:currValue;Action:22,17,21,17,41-2-True-motionSensor
+New clock: 22,17,21,22,41
+Sending at time:37 Msg: Type:currValue;Action:22,17,21,23,41-3-Close-doorSensor

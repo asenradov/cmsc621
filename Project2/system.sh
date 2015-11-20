@@ -4,18 +4,18 @@
 set -e
 
 # Complile/Run the Gateway code
-./frontGate Configs/frontGateConfig.txt Outputs/frontGateLog.txt & sleep 1
+Outputs/Exe/frontGate Configs/frontGateConfig.txt Outputs/Logs/frontGateLog.txt & sleep 1
 
-./backGate Configs/backGateConfig.txt Outputs/backLog.txt &sleep 1
+Outputs/Exe/backGate Configs/backGateConfig.txt Outputs/Logs/backLog.txt & sleep 1
 
 
 #Run device
-./device Configs/deviceConfig.txt Outputs/deviceLog.txt &sleep 1
+Outputs/Exe/device Configs/deviceConfig.txt Outputs/Logs/deviceLog.txt & sleep 1
 
 
 #Run Sensors
-./sensor Configs/keyConfig.txt Inputs/keyInput.txt Outputs/keyOutput.txt & sleep 1
+Outputs/Exe/sensor Configs/keyConfig.txt Inputs/keyInput.txt Outputs/Logs/keyOutput.txt & sleep 1
 
-./sensor Configs/motionConfig.txt Inputs/motionInput.txt Outputs/motionOutput.txt & sleep 1
+Outputs/Exe/sensor Configs/motionConfig.txt Inputs/motionInput.txt Outputs/Logs/motionOutput.txt & sleep 1
 
-./sensor Configs/doorConfig.txt Inputs/doorInput.txt Outputs/doorOutput.txt & sleep 1 &
+Outputs/Exe/sensor Configs/doorConfig.txt Inputs/doorInput.txt Outputs/Logs/doorOutput.txt & sleep 1 &

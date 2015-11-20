@@ -1,6 +1,6 @@
 #!/bin/bash
 
-gcc -w -pthread frontGate.c -o frontGate
-gcc -w -pthread backGate.c -o backGate
-gcc -w -pthread sensor.c -o sensor
-gcc -w -pthread device.c -o device
+gcc -w -pthread src/Gateway/frontGate.c -o Outputs/Exe/frontGate
+gcc -w -pthread src/Database/backGate.c -o Outputs/Exe/backGate
+gcc -w -pthread src/Sensor/sensor.c -o Outputs/Exe/sensor
+gcc -w -pthread src/SecuritySystem/device.c -o Outputs/Exe/device
