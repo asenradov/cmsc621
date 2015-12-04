@@ -11,3 +11,4 @@ Alternatively you could run the script ./system.sh
 the logs will be logged in the Outputs folder
 If run this way, kill the process by getting the pid of the programs with ps.
 It is best to kill the sensors then the device and finally the backGate and frontGate
+If the script fails please run it the first way.

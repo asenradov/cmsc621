@@ -2,28 +2,36 @@ Registered-0-device
 Registered-1-keySensor
 Registered-2-motionSensor
 Registered-3-doorSensor
-3,doorSensor,Open,1447990949,127.0.0.5,5999-Clock-0,0,0,1,2
-2,motionSensor,True,1447990949,127.0.0.3,3999-Clock-0,0,2,1,4
-1,keySensor,True,1447990949,127.0.0.4,4999-Clock-0,3,2,1,6
-2,motionSensor,True,1447990954,127.0.0.3,3999-Clock-0,3,4,1,8
-1,keySensor,True,1447990954,127.0.0.4,4999-Clock-0,5,4,1,10
-2,motionSensor,False,1447990959,127.0.0.3,3999-Clock-0,5,6,1,12
-1,keySensor,False,1447990959,127.0.0.4,4999-Clock-0,7,6,1,14
-3,doorSensor,Close,1447990959,127.0.0.5,5999-Clock-0,7,6,8,16
-2,motionSensor,False,1447990964,127.0.0.3,3999-Clock-0,7,9,8,18
-1,keySensor,False,1447990964,127.0.0.4,4999-Clock-0,10,9,8,20
+3,doorSensor,Open,1448044005,127.0.0.5,5999-Clock-0,0,0,1,2
+2,motionSensor,True,1448044005,127.0.0.3,3999-Clock-0,0,2,1,4
+1,keySensor,True,1448044005,127.0.0.4,4999-Clock-0,3,2,1,6
+2,motionSensor,True,1448044010,127.0.0.3,3999-Clock-0,3,4,1,8
+1,keySensor,True,1448044010,127.0.0.4,4999-Clock-0,5,4,1,10
+2,motionSensor,False,1448044015,127.0.0.3,3999-Clock-0,5,6,1,12
+1,keySensor,False,1448044015,127.0.0.4,4999-Clock-0,6,6,1,14
+3,doorSensor,Close,1448044015,127.0.0.5,5999-Clock-0,6,6,6,16
 User has left!
-System is on-Clock-12,10,9,8,24
-1,keySensor,False,1447990969,127.0.0.4,4999-Clock-12,12,9,8,26
-2,motionSensor,False,1447990969,127.0.0.3,3999-Clock-12,12,12,8,28
-3,doorSensor,Open,1447990969,127.0.0.5,5999-Clock-12,12,12,14,30
-1,keySensor,True,1447990974,127.0.0.4,4999-Clock-12,15,12,14,32
-2,motionSensor,True,1447990974,127.0.0.3,3999-Clock-12,15,15,14,34
-1,keySensor,True,1447990979,127.0.0.4,4999-Clock-12,17,15,14,36
-3,doorSensor,Close,1447990979,127.0.0.5,5999-Clock-12,17,15,17,38
-2,motionSensor,True,1447990979,127.0.0.3,3999-Clock-12,17,17,17,40
+System is on-Clock-10,6,6,6,20
+2,motionSensor,False,1448044020,127.0.0.3,3999-Clock-10,6,10,6,22
+1,keySensor,False,1448044020,127.0.0.4,4999-Clock-10,11,10,6,24
+2,motionSensor,False,1448044025,127.0.0.3,3999-Clock-10,11,12,6,26
+1,keySensor,False,1448044025,127.0.0.4,4999-Clock-10,13,12,6,28
+3,doorSensor,Open,1448044025,127.0.0.5,5999-Clock-10,13,12,14,30
+2,motionSensor,True,1448044030,127.0.0.3,3999-Clock-10,13,15,14,32
+1,keySensor,True,1448044030,127.0.0.4,4999-Clock-10,16,15,14,34
+2,motionSensor,True,1448044035,127.0.0.3,3999-Clock-10,16,17,14,36
+3,doorSensor,Close,1448044035,127.0.0.5,5999-Clock-10,16,17,18,38
+1,keySensor,True,1448044035,127.0.0.4,4999-Clock-10,18,17,18,40
+2,motionSensor,True,1448044040,127.0.0.3,3999-Clock-10,18,20,18,42
 User has returned!
-System is off-Clock-22,17,17,17,44
-2,motionSensor,True,1447990984,127.0.0.3,3999-Clock-22,17,21,17,46
-3,doorSensor,Open,1447990984,127.0.0.5,5999-Clock-22,17,21,21,48
-3,doorSensor,Close,1447990986,127.0.0.5,5999-Clock-22,17,21,23,50
+System is off-Clock-23,18,20,18,46
+3,doorSensor,Open,1448044040,127.0.0.5,5999-Clock-23,18,20,22,48
+1,keySensor,True,1448044040,127.0.0.4,4999-Clock-23,22,20,22,50
+3,doorSensor,Close,1448044042,127.0.0.5,5999-Clock-23,22,20,24,52
+2,motionSensor,False,1448044045,127.0.0.3,3999-Clock-23,22,25,24,54
+1,keySensor,False,1448044045,127.0.0.4,4999-Clock-23,26,25,24,56
+User has left!
+System is on-Clock-30,26,25,24,60
+2,motionSensor,False,1448044050,127.0.0.3,3999-Clock-30,26,28,24,62
+1,keySensor,False,1448044050,127.0.0.4,4999-Clock-30,29,28,24,64
+3,doorSensor,Close,1448044053,127.0.0.5,5999-Clock-30,29,28,30,66
