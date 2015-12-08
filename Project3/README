@@ -1,0 +1,63 @@
+//Winston Tong
+//Asen Radov
+
+I've got special permission to change the config file.
+The config files for the 3 sensors will be
+"keySensor,motionSensor and doorSensor" instead of just sensor.
+
+Assumptions
+-A door open will be followed by a door close.
+-If the first time in the input for all sensors is 0 then the messages could be recieved in any order.
+-The backgate will log registering of devices only if the registering happened after the backgate is run.
+
+The algorithm that the program uses differs from the example algorithm provided in the pdf and was approved by Sandeep. The close signals the next motion and key to be recorded. Thus the outputs would differ as such:
+
+My algorithm:
+ Door Close
+ motion = false
+ key = false
+ -User left
+ 
+Descriptor:
+ motion = true
+ key = true
+ door open
+ motion = false
+ key =false
+ -User left
+
+Message Formats. (For referance)
+Messages will be past between the multichannel and the uni channel
+BackGate is not part of the multichannel
+
+Everything to Multicast
+-------------------------------------
+currValue (Multichannel)
+	Type:currValue;Action:clock(comma seperated)-id-state-type
+
+Multicast to Gateway
+-------------------------------
+register (Unichannel)
+	Type:register;Action:clock-deviceType-ip-port
+
+Front Gate to Back Gate
+-------------------------
+insert (Unichannel)
+	Type:insert;Action:id,deviceType,deviceValue,clock,ip,port
+
+
+Gateway to doorSensor
+-------------------------
+poll
+	Type:currState;Action:poll;
+
+Gateway to Device
+-------------------------
+switch
+	Type:switch;Action:on;
+
+Gateway to Sensors
+------------------------
+clear
+	Type:clear;Action:deviceNum-numDevices(5);
+

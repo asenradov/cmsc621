@@ -1,0 +1,6 @@
+0;9;True
+10;20;False
+21;30;True
+31;35;True
+36;37;True
+38;50;False
